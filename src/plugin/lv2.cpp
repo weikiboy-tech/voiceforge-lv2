@@ -11,7 +11,10 @@ namespace {
 constexpr char monoUri[] = "https://weikiboy-tech.github.io/voiceforge-lv2/mono";
 constexpr char stereoUri[] = "https://weikiboy-tech.github.io/voiceforge-lv2/stereo";
 
-enum Control : unsigned { inputGain, outputGain, enabled, latency, highPass, controlCount };
+enum Control : unsigned {
+    inputGain, outputGain, enabled, latency, highPass,
+    limiterEnabled, limiterCeiling, limiterReduction, controlCount
+};
 
 struct Instance {
     Instance(double rate, unsigned channelCount)
@@ -56,7 +59,10 @@ void run(LV2_Handle handle, uint32_t frames) {
         *ports[latency] = 0.0f;
     instance.processor.process(instance.inputs, instance.outputs, frames,
         {value(inputGain, 0.0f), value(outputGain, 0.0f), value(enabled, 1.0f) >= 0.5f,
-         value(highPass, 0.0f)});
+         value(highPass, 0.0f), value(limiterEnabled, 0.0f) >= 0.5f,
+         value(limiterCeiling, -1.0f)});
+    if (ports[limiterReduction])
+        *ports[limiterReduction] = instance.processor.limiterReduction();
 }
 
 void cleanup(LV2_Handle handle) { delete static_cast<Instance*>(handle); }

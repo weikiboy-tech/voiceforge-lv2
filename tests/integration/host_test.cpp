@@ -57,7 +57,7 @@ void test(LilvWorld* world, const char* uri, unsigned channels) {
     std::unique_ptr<LilvNode, decltype(&lilv_node_free)> id(lilv_new_uri(world, uri), lilv_node_free);
     const auto* plugin = lilv_plugins_get_by_uri(lilv_world_get_all_plugins(world), id.get());
     require(plugin && lilv_plugin_verify(plugin), "discover valid plugin with Lilv");
-    require(lilv_plugin_get_num_ports(plugin) == 2 * channels + 5, "metadata port count");
+    require(lilv_plugin_get_num_ports(plugin) == 2 * channels + 8, "metadata port count");
     require(lilv_plugin_has_latency(plugin) &&
             lilv_plugin_get_latency_port_index(plugin) == 2 * channels + 3, "latency designation");
 
@@ -78,6 +78,7 @@ void test(LilvWorld* world, const char* uri, unsigned channels) {
 
     std::array<float, 2> in{0.25f, -0.125f}, out{};
     float outputGain = 0.0f, enabled = 1.0f, latency = -1.0f, highPass = 0.0f;
+    float limiterEnabled = 0.0f, limiterCeiling = -1.0f, limiterReduction = 0.0f;
     for (unsigned ch = 0; ch < channels; ++ch) {
         lilv_instance_connect_port(instance.get(), ch, &in[ch]);
         lilv_instance_connect_port(instance.get(), channels + ch, &out[ch]);
@@ -87,6 +88,9 @@ void test(LilvWorld* world, const char* uri, unsigned channels) {
     lilv_instance_connect_port(instance.get(), 2 * channels + 2, &enabled);
     lilv_instance_connect_port(instance.get(), 2 * channels + 3, &latency);
     lilv_instance_connect_port(instance.get(), 2 * channels + 4, &highPass);
+    lilv_instance_connect_port(instance.get(), 2 * channels + 5, &limiterEnabled);
+    lilv_instance_connect_port(instance.get(), 2 * channels + 6, &limiterCeiling);
+    lilv_instance_connect_port(instance.get(), 2 * channels + 7, &limiterReduction);
     lilv_instance_activate(instance.get());
     lilv_instance_run(instance.get(), 0);
     require(latency == 0.0f, "report zero samples on a zero-frame run");
@@ -99,6 +103,13 @@ void test(LilvWorld* world, const char* uri, unsigned channels) {
     lilv_instance_activate(instance.get());
     lilv_instance_run(instance.get(), 1);
     require(out[0] == in[0] && (channels == 1 || out[1] == in[1]), "initial bypass");
+    lilv_instance_deactivate(instance.get());
+    enabled = limiterEnabled = 1.0f;
+    limiterCeiling = -12.0f;
+    lilv_instance_activate(instance.get());
+    lilv_instance_run(instance.get(), 1);
+    require(std::abs(out[0] - std::pow(10.0, -12.0 / 20.0)) < 1e-6 &&
+            limiterReduction > 5.0f, "limiter control and reduction meter");
     lilv_instance_deactivate(instance.get());
 }
 } // namespace

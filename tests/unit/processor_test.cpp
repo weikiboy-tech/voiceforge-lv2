@@ -82,4 +82,18 @@ void test(double rate) {
 int main() {
     for (double rate : {8000.0, 44100.0, 48000.0, 96000.0, 192000.0})
         test(rate);
+
+    constexpr double rate = 48000.0;
+    voiceforge::PeakLimiter limiter(rate);
+    require(limiter.process(2.0, 0.5) == 0.25, "limiter catches a peak without lookahead");
+    const double release = limiter.process(0.1, 0.5);
+    require(release > 0.25 && release < 0.251, "limiter release avoids abrupt gain restoration");
+
+    Processor stereo(rate, 2);
+    float left = 2.0f, right = -0.5f, outLeft{}, outRight{};
+    stereo.process({&left, &right}, {&outLeft, &outRight}, 1,
+                   {0.0f, 0.0f, true, 0.0f, true, -6.0f});
+    require(std::abs(outLeft - std::pow(10.0, -6.0 / 20.0)) < 1e-6, "limiter meets ceiling");
+    require(outRight == -0.25f * outLeft, "limiter links both stereo channels");
+    require(stereo.limiterReduction() > 11.99f, "limiter reports gain reduction");
 }

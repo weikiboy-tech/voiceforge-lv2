@@ -19,5 +19,5 @@ Entpacke das Linux-Archiv in ein Verzeichnis und führe dort `sh install.sh` aus
 1. Ardour neu starten und den Plugin-Manager öffnen.
 2. Nach **VoiceForge LV2** suchen.
 3. Im Plugin-Insert der Spur die passende Mono- oder Stereo-Variante hinzufügen.
-4. Die generische Plugin-Oberfläche öffnen und Ein- und Ausgangspegel einstellen. Den Hochpass bei Bedarf auf eine positive Frequenz setzen. **Enabled** schaltet die Bearbeitung um.
+4. Die generische Plugin-Oberfläche öffnen und Ein- und Ausgangspegel einstellen. Den Hochpass bei Bedarf auf eine positive Frequenz setzen. **Limiter** aktiviert die Begrenzung mit dem eingestellten Ceiling. **Enabled** schaltet die gesamte Bearbeitung um.
 5. Mit Sprache abhören und die Session speichern.

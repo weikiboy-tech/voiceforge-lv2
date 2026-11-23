@@ -1,6 +1,6 @@
 # Architektur
 
-Die Pipeline liest beide Eingangssamples eines Frames, wendet Input Gain, optionalen Hochpass und Output Gain an und blendet für den Bypass auf das trockene Signal. Beide Kanäle verwenden dieselben geglätteten Steuerwerte. Der Filterzustand ist pro Kanal getrennt.
+Die Pipeline liest beide Eingangssamples eines Frames, wendet Input Gain, optionalen Hochpass, Output Gain und den optionalen Limiter an und blendet für den Bypass auf das trockene Signal. Beide Kanäle verwenden dieselben geglätteten Steuerwerte. Der Filterzustand ist pro Kanal getrennt.
 
 LV2 instanziiert den DSP-Kern mit Samplerate und Kanalzahl. `connect_port` übernimmt die Host-Puffer. `activate` setzt temporäre Filterzustände zurück. Beim ersten Audioframe übernimmt der DSP die aktuellen Ports. Anschließend liest `run` die Zielwerte blockweise und glättet sie sampleweise. Der Latenz-Kontrollport meldet auch bei einem Durchlauf mit null Frames null Samples.
 
