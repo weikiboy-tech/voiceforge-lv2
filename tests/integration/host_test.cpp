@@ -1,6 +1,8 @@
 #include <lilv/lilv.h>
 #include <lv2/atom/atom.h>
+#include <lv2/atom/util.h>
 #include <lv2/urid/urid.h>
+#include "common/compare_state.hpp"
 
 #include <array>
 #include <cmath>
@@ -22,6 +24,10 @@ struct Mapping {
                 return static_cast<LV2_URID>(i + 1);
         self.uris.emplace_back(uri);
         return static_cast<LV2_URID>(self.uris.size());
+    }
+    static const char* unmap(LV2_URID_Unmap_Handle handle, LV2_URID id) {
+        const auto& self = *static_cast<Mapping*>(handle);
+        return id > 0 && id <= self.uris.size() ? self.uris[id - 1].c_str() : nullptr;
     }
 };
 
@@ -57,15 +63,19 @@ void test(LilvWorld* world, const char* uri, unsigned channels) {
     std::unique_ptr<LilvNode, decltype(&lilv_node_free)> id(lilv_new_uri(world, uri), lilv_node_free);
     const auto* plugin = lilv_plugins_get_by_uri(lilv_world_get_all_plugins(world), id.get());
     require(plugin && lilv_plugin_verify(plugin), "discover valid plugin with Lilv");
-    require(lilv_plugin_get_num_ports(plugin) == 2 * channels + 122, "metadata port count");
+    require(lilv_plugin_get_num_ports(plugin) == 2 * channels + 124, "metadata port count");
     require(lilv_plugin_has_latency(plugin) &&
             lilv_plugin_get_latency_port_index(plugin) == 2 * channels + 3, "latency designation");
 
     Mapping mapping;
     LV2_URID_Map map{&mapping, Mapping::map};
+    LV2_URID_Unmap unmap{&mapping, Mapping::unmap};
+    const LV2_Feature mapFeature{LV2_URID__map, &map};
+    const LV2_Feature* features[]{&mapFeature, nullptr};
+    const voiceforge::CompareUrids compare(&map);
     Values values{Mapping::map(&mapping, LV2_ATOM__Float), 6.0f};
     std::unique_ptr<LilvInstance, decltype(&lilv_instance_free)> instance(
-        lilv_plugin_instantiate(plugin, 48000.0, nullptr), lilv_instance_free);
+        lilv_plugin_instantiate(plugin, 48000.0, features), lilv_instance_free);
     require(instance != nullptr, "load and instantiate plugin");
 
     std::unique_ptr<LilvState, decltype(&lilv_state_free)> state(
@@ -156,6 +166,58 @@ void test(LilvWorld* world, const char* uri, unsigned channels) {
     lilv_instance_run(instance.get(), 1);
     require(out[0] == 0.6f && (channels == 1 || out[1] == -0.25f), "Studio dry delay matches report");
     lilv_instance_deactivate(instance.get());
+
+    alignas(8) std::array<unsigned char, 2048> inBytes{}, outBytes{};
+    auto* compareIn = reinterpret_cast<LV2_Atom_Sequence*>(inBytes.data());
+    auto* compareOut = reinterpret_cast<LV2_Atom_Sequence*>(outBytes.data());
+    struct { LV2_Atom_Event event; voiceforge::CompareState body; } message{};
+    compareIn->atom.type = compare.sequence;
+    lv2_atom_sequence_clear(compareIn);
+    message.event.body = {sizeof(message.body), compare.vector};
+    message.body.vector.child_type = compare.floating;
+    message.body.values[0] = message.body.values[1] = message.body.values[2] = 1.0f;
+    message.body.values[3] = -6.5f;
+    message.body.values[3 + voiceforge::compareCapacity] = 9.0f;
+    require(lv2_atom_sequence_append_event(compareIn, inBytes.size() - sizeof(LV2_Atom), &message.event),
+            "populate comparison exchange input");
+    lilv_instance_connect_port(instance.get(), 2 * channels + 122, compareIn);
+    lilv_instance_connect_port(instance.get(), 2 * channels + 123, compareOut);
+    compareOut->atom.size = outBytes.size() - sizeof(LV2_Atom);
+    lilv_instance_activate(instance.get());
+    lilv_instance_run(instance.get(), 1);
+    lilv_instance_deactivate(instance.get());
+    state.reset(lilv_state_new_from_instance(plugin, instance.get(), &map, nullptr, nullptr, nullptr, nullptr,
+        Values::read, &values, 0, features));
+    require(state && lilv_state_get_num_properties(state.get()) == 1, "snapshot both A/B sides with LV2 State");
+    char* serialized = lilv_state_to_string(world, &map, &unmap, state.get(),
+        "urn:voiceforge:test-state", nullptr);
+    require(serialized != nullptr, "serialize portable A/B snapshot");
+    state.reset(lilv_state_new_from_string(world, &map, serialized));
+    lilv_free(serialized);
+    require(state && lilv_state_get_num_properties(state.get()) == 1, "parse serialized A/B");
+    message.body.values[3] = -2.0f;
+    lv2_atom_sequence_clear(compareIn);
+    lv2_atom_sequence_append_event(compareIn, inBytes.size() - sizeof(LV2_Atom), &message.event);
+    compareOut->atom.size = outBytes.size() - sizeof(LV2_Atom);
+    lilv_instance_activate(instance.get());
+    lilv_instance_run(instance.get(), 1);
+    lilv_instance_deactivate(instance.get());
+    lilv_state_restore(state.get(), instance.get(), Values::write, &values, 0, features);
+    struct { LV2_Atom_Event event; int32_t value; } request{};
+    request.event.body = {sizeof(request.value), compare.boolean};
+    lv2_atom_sequence_clear(compareIn);
+    lv2_atom_sequence_append_event(compareIn, inBytes.size() - sizeof(LV2_Atom), &request.event);
+    compareOut->atom.size = outBytes.size() - sizeof(LV2_Atom);
+    lilv_instance_activate(instance.get());
+    lilv_instance_run(instance.get(), 1);
+    lilv_instance_deactivate(instance.get());
+    const auto* reply = lv2_atom_sequence_begin(&compareOut->body);
+    require(compareOut->atom.size > sizeof(LV2_Atom_Sequence_Body) && reply->body.type == compare.vector,
+            "reply to UI requesting the restored A/B snapshot");
+    voiceforge::CompareState restored;
+    std::memcpy(&restored, LV2_ATOM_BODY_CONST(&reply->body), sizeof(restored));
+    require(restored.values[0] == 1.0f && restored.values[3] == -6.5f &&
+            restored.values[3 + voiceforge::compareCapacity] == 9.0f, "both saved parameter sets survive reload");
 }
 } // namespace
 

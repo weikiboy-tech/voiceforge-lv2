@@ -1,4 +1,5 @@
 #include "voiceforge_ui_data.hpp"
+#include "common/compare_state.hpp"
 #include "dsp/analysis/spectrum.hpp"
 
 #include <lv2/ui/ui.h>
@@ -30,6 +31,7 @@ namespace {
 constexpr char uri[] = "https://weikiboy-tech.github.io/voiceforge-lv2/ui";
 constexpr int width = 940, height = 620;
 constexpr std::size_t parameterCount = std::size(params);
+static_assert(parameterCount <= compareCapacity);
 using Values = std::array<float, parameterCount>;
 using Clock = std::chrono::steady_clock;
 
@@ -98,9 +100,9 @@ enum class Edit { none, create, rename };
 class Panel {
 public:
     Panel(Display* display, Window parent, LV2UI_Write_Function write, LV2UI_Controller ctl,
-          unsigned audio, const LV2UI_Touch* touch, LV2UI_Resize* hostResize)
+          unsigned audio, const LV2UI_Touch* touch, LV2UI_Resize* hostResize, const LV2_URID_Map* map)
         : display_(display), write_(write), controller_(ctl), audio_(audio), touch_(touch),
-          hostResize_(hostResize), values_(defaults()) {
+          hostResize_(hostResize), ids_(map), values_(defaults()) {
         const int screen = DefaultScreen(display_);
         const double dpi = 25.4 * DisplayWidth(display_,screen) / std::max(1,DisplayWidthMM(display_,screen));
         requestedScale_ = dpi >= 155 ? 1.5 : 1.0;
@@ -127,6 +129,29 @@ public:
         const auto i=port-audio_;
         if (drag_!=static_cast<int>(i) && values_[i]!=data) { values_[i]=data; dirty_=true; }
     }
+    void incoming(unsigned port, unsigned size, unsigned protocol, const void* data) {
+        if (!ids_.eventTransfer || protocol != ids_.eventTransfer ||
+            port != audio_ + parameterCount + 1 || size != sizeof(LV2_Atom) + sizeof(CompareState))
+            return;
+        LV2_Atom atom{};
+        std::memcpy(&atom,data,sizeof(atom));
+        if (atom.type != ids_.vector || atom.size != sizeof(CompareState)) return;
+        CompareState state;
+        std::memcpy(&state,static_cast<const char*>(data)+sizeof(atom),sizeof(state));
+        if (state.vector.child_type != ids_.floating || state.vector.child_size != sizeof(float)) return;
+        if (!received_) {
+            side_=state.values[0]>.5f ? 1:0;
+            for (unsigned s=0;s<2;++s) {
+                haveSide_[s]=state.values[1+s]>.5f;
+                for (unsigned i=0;i<parameterCount;++i) {
+                    const auto value=state.values[3+s*compareCapacity+i];
+                    compare_[s][i]=std::isfinite(value) ? std::clamp(value,params[i].min,params[i].max) : params[i].initial;
+                }
+            }
+        }
+        received_=true;
+        dirty_=true;
+    }
     int size(int w, int h) {
         if (w<1 || h<1) return 1;
         XResizeWindow(display_,window,w,h);
@@ -149,6 +174,12 @@ public:
             } else if (e.type==KeyPress) key(e.xkey);
         }
         const auto now=Clock::now();
+        if (ids_.eventTransfer && !received_ && requests_<12 && now>=nextRequest_) {
+            struct { LV2_Atom header; int32_t value; } request{{sizeof(int32_t),ids_.boolean},1};
+            write_(controller_,audio_+parameterCount,sizeof(request),ids_.eventTransfer,&request);
+            ++requests_;
+            nextRequest_=now+std::chrono::milliseconds(350);
+        }
         if (pulse_>=0 && now>=pulseEnd_) {
             set(pulse_,0.0f); pulse_=-1;
         }
@@ -439,6 +470,22 @@ private:
         compare_[side_]=values_; haveSide_[side_]=true;
         if(haveSide_[next]) apply(compare_[next]); else { compare_[next]=values_; haveSide_[next]=true; }
         side_=next;
+        saveComparison();
+    }
+    void saveComparison() {
+        if (!ids_.eventTransfer) return;
+        received_=true;
+        struct { LV2_Atom header; CompareState state; } message{};
+        message.header={sizeof(message.state),ids_.vector};
+        message.state.vector.child_type=ids_.floating;
+        message.state.values[0]=static_cast<float>(side_);
+        for (unsigned s=0;s<2;++s) {
+            message.state.values[1+s]=haveSide_[s] ? 1.0f : 0.0f;
+            for (unsigned i=0;i<parameterCount;++i)
+                if (persistent(params[i]))
+                    message.state.values[3+s*compareCapacity+i]=compare_[s][i];
+        }
+        write_(controller_,audio_+parameterCount,sizeof(message),ids_.eventTransfer,&message);
     }
     void action(int id) {
         if(id>=SelectPage && id<SelectPage+4) { page_=id-SelectPage; group_=0; scroll_=0; }
@@ -448,7 +495,7 @@ private:
             case Bypass: set("enabled",1.0f-get("enabled")); break;
             case SideA: switchSide(0); break;
             case SideB: switchSide(1); break;
-            case Copy: compare_[1-side_]=values_; haveSide_[1-side_]=true; break;
+            case Copy: compare_[1-side_]=values_; haveSide_[1-side_]=true; saveComparison(); break;
             case Presets: presetOpen_=true; refreshPresets(); break;
             case ClosePreset: presetOpen_=false; edit_=Edit::none; status_.clear(); break;
             case PrevPreset: preset_=(preset_+names_.size()-1)%names_.size(); status_.clear(); break;
@@ -576,6 +623,7 @@ private:
     Display* display_; cairo_surface_t* canvas_{};
     LV2UI_Write_Function write_; LV2UI_Controller controller_; unsigned audio_;
     const LV2UI_Touch* touch_; LV2UI_Resize* hostResize_;
+    CompareUrids ids_;
     Values values_, prior_{};
     std::array<Values,2> compare_{}; std::array<bool,2> haveSide_{};
     std::vector<Hit> hits_;
@@ -587,6 +635,9 @@ private:
     int pixelsW_=width,pixelsH_=height,side_=0,scroll_=0,maxScroll_=0,drag_=-1,selected_=-1,pulse_=-1;
     double requestedScale_=1.0,origin_=0,dragWidth_=1,dragValue_=0;
     bool presetOpen_=false,dirty_=true,beforeAnalysis_=false;
+    bool received_=false;
+    unsigned requests_=0;
+    Clock::time_point nextRequest_{};
     Clock::time_point lastPaint_{},pulseEnd_{};
 };
 
@@ -594,18 +645,20 @@ LV2UI_Handle instantiate(const LV2UI_Descriptor*,const char* plugin,const char*,
                          LV2UI_Write_Function write,LV2UI_Controller controller,LV2UI_Widget* widget,
                          const LV2_Feature* const* features) {
     Window parent=0; const LV2UI_Touch* touch=nullptr; LV2UI_Resize* resize=nullptr;
+    const LV2_URID_Map* map=nullptr;
     for(auto fs=features;fs && *fs;++fs) {
         const auto& f=**fs;
         if(std::strcmp(f.URI,LV2_UI__parent)==0) parent=reinterpret_cast<Window>(f.data);
         else if(std::strcmp(f.URI,LV2_UI__touch)==0) touch=static_cast<const LV2UI_Touch*>(f.data);
         else if(std::strcmp(f.URI,LV2_UI__resize)==0) resize=static_cast<LV2UI_Resize*>(f.data);
+        else if(std::strcmp(f.URI,LV2_URID__map)==0) map=static_cast<const LV2_URID_Map*>(f.data);
     }
     if(!parent || !widget || !write) return nullptr;
     Display* display=XOpenDisplay(nullptr);
     if(!display) return nullptr;
     try {
         const unsigned channels=std::string_view(plugin).ends_with("/stereo") ? 4u : 2u;
-        auto panel=std::make_unique<Panel>(display,parent,write,controller,channels,touch,resize);
+        auto panel=std::make_unique<Panel>(display,parent,write,controller,channels,touch,resize,map);
         *widget=reinterpret_cast<LV2UI_Widget>(panel->window);
         return panel.release();
     } catch(...) {
@@ -614,10 +667,11 @@ LV2UI_Handle instantiate(const LV2UI_Descriptor*,const char* plugin,const char*,
 }
 void cleanup(LV2UI_Handle ui) { delete static_cast<Panel*>(ui); }
 void portEvent(LV2UI_Handle ui,uint32_t index,uint32_t size,uint32_t protocol,const void* data) {
+    if (!data) return;
     if(protocol==0 && size==sizeof(float) && data) {
         float value; std::memcpy(&value,data,sizeof(value));
         static_cast<Panel*>(ui)->incoming(index,value);
-    }
+    } else static_cast<Panel*>(ui)->incoming(index,size,protocol,data);
 }
 int idle(LV2UI_Handle ui) { return static_cast<Panel*>(ui)->idle(); }
 int resize(LV2UI_Feature_Handle h,int w,int t) { return static_cast<Panel*>(h)->size(w,t); }

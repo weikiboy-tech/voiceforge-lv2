@@ -68,6 +68,7 @@ def main():
 @prefix pset: <http://lv2plug.in/ns/ext/presets#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix ui: <http://lv2plug.in/ns/extensions/ui#> .
+@prefix urid: <http://lv2plug.in/ns/ext/urid#> .
 """
     manifest = (args.source / "lv2/manifest.ttl").read_text(encoding="utf8")
     manifest += "\n" + "\n".join(prefix.splitlines()[1:]) + "\n"
@@ -76,7 +77,7 @@ def main():
     a ui:X11UI ;
     lv2:binary <voiceforge_ui.so> ;
     lv2:requiredFeature ui:parent, ui:idleInterface ;
-    lv2:optionalFeature ui:resize, ui:touch ;
+    lv2:optionalFeature ui:resize, ui:touch, urid:map ;
     lv2:extensionData ui:idleInterface, ui:resize ;
     ui:portNotification
 """
@@ -84,6 +85,8 @@ def main():
     for variant in ("mono", "stereo"):
         notifications.extend(f'        [ ui:plugin <{BASE}{variant}> ; lv2:symbol "{p[1]}" ;'
                              ' ui:protocol ui:floatProtocol ]' for p in ports if p[-2])
+        notifications.append(f'        [ ui:plugin <{BASE}{variant}> ; lv2:symbol "compare_out" ;'
+                             ' ui:protocol <http://lv2plug.in/ns/ext/atom#eventTransfer> ]')
     ui += ",\n".join(notifications) + " .\n"
     presets_ttl = prefix
     for variant in ("mono", "stereo"):

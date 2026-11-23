@@ -1,5 +1,9 @@
 @prefix doap: <http://usefulinc.com/ns/doap#> .
 @prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix atom: <http://lv2plug.in/ns/ext/atom#> .
+@prefix rsz: <http://lv2plug.in/ns/ext/resize-port#> .
+@prefix state: <http://lv2plug.in/ns/ext/state#> .
+@prefix urid: <http://lv2plug.in/ns/ext/urid#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix units: <http://lv2plug.in/ns/extensions/units#> .
@@ -10,6 +14,8 @@
     doap:license <https://spdx.org/licenses/MIT.html> ;
     lv2:minorVersion 4 ;
     lv2:microVersion 1 ;
+    lv2:optionalFeature urid:map ;
+    lv2:extensionData state:interface ;
     lv2:port
         [ a lv2:InputPort, lv2:AudioPort ; lv2:index 0 ; lv2:symbol "in" ; lv2:name "Input" ],
         [ a lv2:OutputPort, lv2:AudioPort ; lv2:index 1 ; lv2:symbol "out" ; lv2:name "Output" ],
@@ -363,4 +369,10 @@
           lv2:portProperty lv2:connectionOptional ; units:unit units:db ],
         [ a lv2:OutputPort, lv2:ControlPort ; lv2:index 123 ; lv2:symbol "spectrum_11" ;
           lv2:name "Spectrum 10000 Hz" ; lv2:minimum -120 ; lv2:maximum 800 ;
-          lv2:portProperty lv2:connectionOptional ; units:unit units:db ] .
+          lv2:portProperty lv2:connectionOptional ; units:unit units:db ],
+        [ a lv2:InputPort, atom:AtomPort ; lv2:index 124 ;
+          lv2:symbol "compare_in" ; lv2:name "A/B Control" ; atom:bufferType atom:Sequence ;
+          atom:supports atom:Bool, atom:Vector ; rsz:minimumSize 2048 ; lv2:portProperty lv2:connectionOptional ],
+        [ a lv2:OutputPort, atom:AtomPort ; lv2:index 125 ;
+          lv2:symbol "compare_out" ; lv2:name "A/B Notification" ; atom:bufferType atom:Sequence ;
+          atom:supports atom:Vector ; rsz:minimumSize 2048 ; lv2:portProperty lv2:connectionOptional ] .

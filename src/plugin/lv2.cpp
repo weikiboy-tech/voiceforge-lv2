@@ -1,8 +1,12 @@
 #include "dsp/core/processor.hpp"
+#include "common/compare_state.hpp"
 
+#include <lv2/atom/util.h>
 #include <lv2/core/lv2.h>
+#include <lv2/state/state.h>
 
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <cstring>
 #include <new>
@@ -30,10 +34,11 @@ enum Control : unsigned {
     analysisClip, analysisLoudness, recommendHpf, recommendComp, recommendEss, recommendNoise,
     sampleRate, spectrumStart, controlCount = spectrumStart + voiceforge::Spectrum::frequencies.size()
 };
+static_assert(controlCount <= voiceforge::compareCapacity && std::atomic<float>::is_always_lock_free);
 
 struct Instance {
-    Instance(double rate, unsigned channelCount)
-        : processor(rate, channelCount), channels(channelCount), rate(rate) {}
+    Instance(double rate, unsigned channelCount, const LV2_URID_Map* map)
+        : processor(rate, channelCount), channels(channelCount), rate(rate), ids(map) {}
 
     voiceforge::Processor processor;
     unsigned channels;
@@ -41,14 +46,76 @@ struct Instance {
     std::array<const float*, 2> inputs{};
     std::array<float*, 2> outputs{};
     std::array<float*, controlCount> controls{};
+    voiceforge::CompareUrids ids;
+    const LV2_Atom_Sequence* compareIn = nullptr;
+    LV2_Atom_Sequence* compareOut = nullptr;
+    std::atomic<unsigned> compareRevision{};
+    std::array<std::atomic<float>, voiceforge::CompareState{}.values.size()> comparison{};
+    bool reply = false;
+
+    void update(const voiceforge::CompareState& state) noexcept {
+        compareRevision.fetch_add(1);
+        for (unsigned i = 0; i < comparison.size(); ++i)
+            comparison[i].store(std::isfinite(state.values[i]) ? state.values[i] : 0.0f);
+        compareRevision.fetch_add(1);
+    }
+
+    bool copy(voiceforge::CompareState& state) const noexcept {
+        state.vector.child_type = ids.floating;
+        for (unsigned retry = 0; retry < 32; ++retry) {
+            const auto before = compareRevision.load();
+            if (before % 2 != 0)
+                continue;
+            for (unsigned i = 0; i < comparison.size(); ++i)
+                state.values[i] = comparison[i].load();
+            if (before == compareRevision.load())
+                return true;
+        }
+        return false;
+    }
+
+    void exchange(unsigned frames) noexcept {
+        if (ids.sequence == 0)
+            return;
+        if (compareIn && compareIn->atom.type == ids.sequence) {
+            LV2_ATOM_SEQUENCE_FOREACH(compareIn, event) {
+                if (event->body.type == ids.boolean)
+                    reply = true;
+                else if (event->body.type == ids.vector && event->body.size == sizeof(voiceforge::CompareState)) {
+                    voiceforge::CompareState state;
+                    std::memcpy(&state, LV2_ATOM_BODY_CONST(&event->body), sizeof(state));
+                    if (state.vector.child_type == ids.floating && state.vector.child_size == sizeof(float))
+                        update(state);
+                }
+            }
+        }
+        if (!compareOut)
+            return;
+        const unsigned capacity = compareOut->atom.size;
+        if (capacity < sizeof(LV2_Atom_Sequence_Body))
+            return;
+        compareOut->atom.type = ids.sequence;
+        compareOut->body.unit = compareOut->body.pad = 0;
+        lv2_atom_sequence_clear(compareOut);
+        if (frames && reply) {
+            struct { LV2_Atom_Event event; voiceforge::CompareState state; } message{};
+            message.event.body = {sizeof(message.state), ids.vector};
+            if (copy(message.state) && lv2_atom_sequence_append_event(compareOut, capacity, &message.event))
+                reply = false;
+        }
+    }
 };
 
 LV2_Handle instantiate(const LV2_Descriptor* descriptor, double rate, const char*,
-                       const LV2_Feature* const*) {
+                       const LV2_Feature* const* features) {
     if (!std::isfinite(rate) || rate < 8000.0 || rate > 384000.0)
         return nullptr;
     try {
-        return new Instance(rate, std::strcmp(descriptor->URI, stereoUri) == 0 ? 2u : 1u);
+        const LV2_URID_Map* map = nullptr;
+        for (auto f = features; f && *f; ++f)
+            if (std::strcmp((*f)->URI, LV2_URID__map) == 0)
+                map = static_cast<const LV2_URID_Map*>((*f)->data);
+        return new Instance(rate, std::strcmp(descriptor->URI, stereoUri) == 0 ? 2u : 1u, map);
     } catch (const std::bad_alloc&) {
         return nullptr;
     }
@@ -63,6 +130,10 @@ void connectPort(LV2_Handle handle, uint32_t port, void* data) {
         instance.outputs[port - channels] = static_cast<float*>(data);
     else if (port < 2 * channels + controlCount)
         instance.controls[port - 2 * channels] = static_cast<float*>(data);
+    else if (port == 2 * channels + controlCount)
+        instance.compareIn = static_cast<const LV2_Atom_Sequence*>(data);
+    else if (port == 2 * channels + controlCount + 1)
+        instance.compareOut = static_cast<LV2_Atom_Sequence*>(data);
 }
 
 void activate(LV2_Handle handle) {
@@ -71,6 +142,7 @@ void activate(LV2_Handle handle) {
 
 void run(LV2_Handle handle, uint32_t frames) {
     auto& instance = *static_cast<Instance*>(handle);
+    instance.exchange(frames);
     const auto& ports = instance.controls;
     const auto value = [&ports](std::size_t port, float fallback) {
         return ports[port] && std::isfinite(*ports[port]) ? *ports[port] : fallback;
@@ -171,9 +243,45 @@ void run(LV2_Handle handle, uint32_t frames) {
 
 void cleanup(LV2_Handle handle) { delete static_cast<Instance*>(handle); }
 
+LV2_State_Status save(LV2_Handle handle, LV2_State_Store_Function store, LV2_State_Handle state,
+                      uint32_t, const LV2_Feature* const*) {
+    const auto& plugin = *static_cast<Instance*>(handle);
+    if (!plugin.ids.property)
+        return LV2_STATE_SUCCESS;
+    voiceforge::CompareState snapshot;
+    if (!plugin.copy(snapshot))
+        return LV2_STATE_ERR_UNKNOWN;
+    if (snapshot.values[1] == 0.0f && snapshot.values[2] == 0.0f)
+        return LV2_STATE_SUCCESS;
+    return store(state, plugin.ids.property, &snapshot, sizeof(snapshot), plugin.ids.vector,
+                 LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+}
+
+LV2_State_Status restore(LV2_Handle handle, LV2_State_Retrieve_Function retrieve, LV2_State_Handle state,
+                         uint32_t, const LV2_Feature* const*) {
+    auto& plugin = *static_cast<Instance*>(handle);
+    if (!plugin.ids.property)
+        return LV2_STATE_SUCCESS;
+    size_t size = 0;
+    uint32_t type = 0, flags = 0;
+    const void* data = retrieve(state, plugin.ids.property, &size, &type, &flags);
+    voiceforge::CompareState snapshot;
+    if (data && type == plugin.ids.vector && size == sizeof(snapshot))
+        std::memcpy(&snapshot, data, sizeof(snapshot));
+    if (snapshot.vector.child_size != sizeof(float) || snapshot.vector.child_type != plugin.ids.floating)
+        snapshot = {};
+    plugin.update(snapshot);
+    return LV2_STATE_SUCCESS;
+}
+
+const void* extension(const char* uri) {
+    static const LV2_State_Interface state{save, restore};
+    return std::strcmp(uri, LV2_STATE__interface) == 0 ? &state : nullptr;
+}
+
 constexpr LV2_Descriptor descriptors[] = {
-    {monoUri, instantiate, connectPort, activate, run, nullptr, cleanup, nullptr},
-    {stereoUri, instantiate, connectPort, activate, run, nullptr, cleanup, nullptr}
+    {monoUri, instantiate, connectPort, activate, run, nullptr, cleanup, extension},
+    {stereoUri, instantiate, connectPort, activate, run, nullptr, cleanup, extension}
 };
 } // namespace
 

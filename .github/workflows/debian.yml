@@ -13,11 +13,13 @@ jobs:
       - name: Prepare Debian build environment
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends binutils ca-certificates cmake dpkg-dev file g++ git libcairo2-dev liblilv-dev libx11-dev lilv-utils lv2-dev ninja-build pkg-config python3 serdi sordi
+          apt-get install -y --no-install-recommends binutils ca-certificates cmake dpkg-dev file fonts-dejavu-core g++ git libcairo2-dev liblilv-dev libx11-dev lilv-utils lv2-dev ninja-build pkg-config python3 serdi sordi xauth xvfb
           dpkg-query -W g++ cmake dpkg-dev liblilv-dev lv2-dev
       - uses: actions/checkout@v4
       - name: Build and test
         run: sh scripts/build.sh
+      - name: Exercise the native UI under Xvfb
+        run: xvfb-run -a -s "-screen 0 1280x900x24 -dpi 96" build-linux/voiceforge_ui_test build-linux/lv2/voiceforge.lv2/voiceforge_ui.so build-linux/voiceforge-ui.png
       - name: Render licensed speech through LV2
         run: |
           python3 tests/audio/lv2_speech_test.py build-linux/lv2
@@ -64,4 +66,5 @@ jobs:
             dist/*.deb
             dist/*.tar.gz
             build-linux/runtime-dependencies.txt
+            build-linux/voiceforge-ui.png
           if-no-files-found: error
