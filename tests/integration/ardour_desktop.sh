@@ -6,6 +6,16 @@ export LC_ALL=C ARDOUR_TRY_AUTOSTART_ENGINE=1
 config=$XDG_CONFIG_HOME/ardour7
 mkdir -p "$config"
 touch "$config/.a7"
+# The headless and desktop tools can assign different names to the same dummy
+# device. Omit the hint only from the disposable test session.
+python3 - "$VOICEFORGE_ARDOUR_SESSION/VoiceForgeQA.ardour" <<'PY'
+from pathlib import Path
+import re
+import sys
+session = Path(sys.argv[1])
+source = session.read_text(encoding="utf-8")
+session.write_text(re.sub(r"<EngineHints\b[^>]*/>", "", source), encoding="utf-8")
+PY
 cat > "$config/config" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <Ardour>
@@ -29,6 +39,8 @@ for attempt in $(seq 1 60); do
     id=$(xdotool search --onlyvisible --name 'VoiceForgeQA.*Ardour|Ardour.*VoiceForgeQA' 2>/dev/null | head -n1 || :)
     if [ -n "$id" ]; then
         xdotool windowfocus "$id"
+        xdotool key m
+        sleep .4
         break
     fi
     dialog=$(xdotool search --onlyvisible --name 'Audio/MIDI Setup|Audio.*Setup' 2>/dev/null | head -n1 || :)
