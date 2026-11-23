@@ -1,25 +1,31 @@
-# Installation unter Debian
+# Installation für Ardour unter Debian 12 (amd64)
 
 Lade das vorab getestete amd64-Artefakt unter **Artifacts** eines erfolgreichen [GitHub-Actions-Laufs](https://github.com/weikiboy-tech/voiceforge-lv2/actions) herunter und entpacke den Actions-Download.
 
 ## Debian-Paket
 
 ```sh
-sudo apt install ./voiceforge-lv2_0.3.0~preview1_amd64.deb
+sudo apt install ./voiceforge-lv2_0.4.0~preview2_amd64.deb
 ```
 
 Das Paket installiert unter `/usr/lib/lv2/voiceforge.lv2`. Entfernen lässt es sich mit `sudo apt remove voiceforge-lv2`.
 
 ## Ohne Root-Rechte
 
-Entpacke das Linux-Archiv in ein Verzeichnis und führe dort `sh install.sh` aus. Derselbe Befehl aktualisiert eine vorhandene Benutzerinstallation. `sh uninstall.sh` entfernt sie. VoiceForge liegt unter `~/.lv2/voiceforge.lv2`. Verwende für dieselbe Plugin-Version einen der beiden Installationswege.
+Entpacke das Linux-Archiv in ein Verzeichnis und führe dort `sh install.sh` aus. Derselbe Befehl aktualisiert eine vorhandene Benutzerinstallation. `sh uninstall.sh` entfernt sie. VoiceForge liegt unter `~/.lv2/voiceforge.lv2`. Verwende einen Installationsweg pro Rechner. Für die eigene Oberfläche benötigt das Benutzerarchiv `libcairo2` und `libx11-6`. Beim Debian-Paket löst APT die Abhängigkeiten auf.
 
 ## In Ardour
 
 1. Ardour neu starten und den Plugin-Manager öffnen.
 2. Nach **VoiceForge LV2** suchen.
 3. Im Plugin-Insert der Spur die passende Mono- oder Stereo-Variante hinzufügen.
-4. Die generische Plugin-Oberfläche öffnen und Ein- und Ausgangspegel einstellen. Die EQ-Bänder und Dynamikmodule einzeln einschalten. **Limiter** aktiviert die Begrenzung mit dem eingestellten Ceiling. **Enabled** schaltet die gesamte Bearbeitung um.
-5. Mit Sprache abhören und die Session speichern.
+4. VoiceForge doppelt anklicken. Unter **Presets** das Werkspreset **Natural Voice** wählen und auf **Load** klicken. Für Monitoring **Live** wählen.
+5. Mit Sprache abhören, den Ausgangspegel einstellen und die Session speichern. Falls Ardour stattdessen generische Regler öffnet, prüfe den Start in einer Linux-Sitzung mit X11 oder XWayland.
 
 Für **De-Click** und **Spectral Noise Reduction** stelle bei gestopptem Transport **Processing Mode** auf **Studio** und aktiviere die gewünschten Module. Die Rauschreduktion lernt aus leisen Passagen. Spiele bei Bedarf zuerst ein kurzes Stück mit dem Raum- oder Lüftergeräusch ab. Für Sprachmonitoring bleibt **Live** bei null zusätzlicher Sample-Verzögerung. **De-Plosive** steht in beiden Modi zur Verfügung.
+
+## Analyse und Vergleich
+
+Spiele einen Abschnitt ab und klicke im Tab **Analyze Voice** auf **Analyze Voice**. Nach acht Sekunden erscheint eine Auswertung. **Apply recommendations** übernimmt die Änderungen. **Compare** wechselt danach zwischen den ursprünglichen und den vorgeschlagenen Werten. **Reset** leert die Analyse.
+
+Die Buttons **A**, **B** und **Copy** vergleichen und kopieren Parametersätze. Verwende beim Vergleich denselben Live-/Studio-Modus, wenn der Latenzausgleich unverändert bleiben soll. Eigene Presets lassen sich im Menü speichern, umbenennen und löschen.

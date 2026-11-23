@@ -108,6 +108,7 @@ public:
         requestedScale_ = dpi >= 155 ? 1.5 : 1.0;
         pixelsW_=static_cast<int>(width*requestedScale_); pixelsH_=static_cast<int>(height*requestedScale_);
         window = XCreateSimpleWindow(display_,parent,0,0,pixelsW_,pixelsH_,0,0,0x0d1318);
+        XStoreName(display_,window,"VoiceForge LV2 Panel");
         XWindowAttributes attrs{};
         XGetWindowAttributes(display_,window,&attrs);
         canvas_ = cairo_xlib_surface_create(display_,window,attrs.visual,pixelsW_,pixelsH_);
@@ -277,7 +278,8 @@ private:
         box(c,{18,114,674,175},dim);
         label(c,31,136,"INPUT SPECTRUM",11,blue,true);
         label(c,183,136,"EQ RESPONSE",11,cyan,true);
-        const double rate=std::max<double>(get("sample_rate"),8000.0);
+        const double reportedRate=get("sample_rate");
+        const double rate=reportedRate<8000.0 ? 48000.0 : reportedRate;
         const double maxHz=std::min(20000.0,rate*.475);
         const auto x=[&](double f){ return 33.0+640.0*std::log(f/40)/std::log(maxHz/40); };
         cairo_save(c); cairo_rectangle(c,31,146,643,116); cairo_clip(c);
@@ -423,7 +425,7 @@ private:
         cairo_t* c=cairo_create(canvas_);
         cairo_scale(c,scaleX(),scaleY());
         color(c,{.055,.071,.086}); cairo_paint(c);
-        label(c,21,40,"VoiceForge",30,text,true); label(c,208,38,"LV2",13,cyan,true);
+        label(c,21,40,"VoiceForge",29,text,true); label(c,217,38,"LV2",13,cyan,true);
         button(c,{291,16,94,34},get("mode")>.5f ? "Studio":"Live",Mode,get("mode")>.5f);
         button(c,{392,16,85,34},get("enabled")>.5f ? "Active":"Bypass",Bypass,get("enabled")<.5f);
         button(c,{496,16,39,34},"A",SideA,side_==0);

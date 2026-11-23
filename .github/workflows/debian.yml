@@ -13,7 +13,7 @@ jobs:
       - name: Prepare Debian build environment
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends binutils ca-certificates cmake dpkg-dev file fonts-dejavu-core g++ git libcairo2-dev liblilv-dev libx11-dev lilv-utils lv2-dev ninja-build pkg-config python3 serdi sordi xauth xvfb
+          apt-get install -y --no-install-recommends binutils ca-certificates cmake dpkg-dev file fonts-dejavu-core g++ git libcairo2-dev liblilv-dev libx11-dev lilv-utils lv2-dev ninja-build pkg-config python3 serdi sordi x11-utils xauth xdotool xvfb
           dpkg-query -W g++ cmake dpkg-dev liblilv-dev lv2-dev
       - uses: actions/checkout@v4
       - name: Build and test
@@ -59,6 +59,13 @@ jobs:
           VOICEFORGE_ARDOUR_REOPEN=1 timeout 30 ardour7-lua tests/integration/ardour_smoke.lua > "$stage/reopen.log" 2>&1 || { cat "$stage/reopen.log"; exit 1; }
           cat "$stage/reopen.log"
           grep -Fx 'VoiceForge Ardour session restored' "$stage/reopen.log"
+          xvfb-run -a -s "-screen 0 1440x1000x24 -dpi 96" sh tests/integration/ardour_desktop.sh build-linux/ardour-qa
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ardour-desktop-qa
+          path: build-linux/ardour-qa/
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: voiceforge-lv2-debian-bookworm-amd64-preview

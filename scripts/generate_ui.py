@@ -21,7 +21,7 @@ def read_ports(path):
         output = direction == "Output"
         has_limits = "lv2:minimum" in body
         lo, hi = (number(body, "minimum"), number(body, "maximum")) if has_limits else ("0", "100000")
-        default = number(body, "default") if not output else lo
+        default = number(body, "default") if not output else ("0" if symbol == "sample_rate" else lo)
         entries.append((index, symbol, name, lo, hi, default,
                         unit.group(1) if unit else "", output, "lv2:toggled" in body or symbol == "mode"))
     return entries

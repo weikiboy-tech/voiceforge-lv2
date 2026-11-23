@@ -61,6 +61,13 @@ void screenshot(Display* d, Window w, const char* filename) {
 
 int main(int argc, char** argv) {
     require(argc == 3, "expected LV2 UI library and screenshot path");
+    if (std::string(argv[1])=="--desktop") {
+        Display* display=XOpenDisplay(nullptr);
+        require(display!=nullptr,"open desktop display");
+        screenshot(display,DefaultRootWindow(display),argv[2]);
+        XCloseDisplay(display);
+        return 0;
+    }
     void* library = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
     if (!library) { std::cerr << dlerror() << '\n'; return 1; }
     using Descriptor = const LV2UI_Descriptor* (*)(uint32_t);

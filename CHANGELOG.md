@@ -1,5 +1,12 @@
 # Änderungsverlauf
 
+## 0.4.0~preview2
+
+- Native X11/Cairo-Oberfläche mit EQ-Kurve, Eingangsspektrum, Pegeln und Gain Reduction.
+- Sprachgesteuerter Level Rider, True-Peak- und LUFS-Messung sowie bestätigungspflichtige Acht-Sekunden-Analyse.
+- Zehn LV2-Werkspresets, lokale Benutzerpresets und im LV2-State speicherbarer A/B-Vergleich.
+- Automatisierter Mono-/Stereo-Session-Test im Debian-Ardour-Paket und grafischer UI-Test.
+
 ## 0.3.0~preview1
 
 - De-Click mit lokalem Impulsdetektor und Interpolation. De-Plosive mit dynamischer Bassabsenkung.
