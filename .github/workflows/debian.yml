@@ -42,6 +42,21 @@ jobs:
           build-linux/voiceforge_host_test "$HOME/.lv2"
           sh "$stage/uninstall.sh"
           test ! -e "$HOME/.lv2/voiceforge.lv2"
+      - name: Verify installed plugin in Debian Ardour
+        run: |
+          apt-get install -y --no-install-recommends ardour
+          dpkg-query -W ardour
+          stage=$(mktemp -d)
+          export HOME="$stage/home" XDG_CONFIG_HOME="$stage/config" LV2_PATH=/usr/lib/lv2
+          mkdir -p "$HOME" "$XDG_CONFIG_HOME"
+          export VOICEFORGE_ARDOUR_SESSION="$stage/VoiceForgeQA"
+          timeout 30 ardour7-lua tests/integration/ardour_smoke.lua > "$stage/create.log" 2>&1 || { cat "$stage/create.log"; exit 1; }
+          cat "$stage/create.log"
+          grep -Fx 'VoiceForge Ardour session created' "$stage/create.log"
+          test -s "$VOICEFORGE_ARDOUR_SESSION/VoiceForgeQA.ardour"
+          VOICEFORGE_ARDOUR_REOPEN=1 timeout 30 ardour7-lua tests/integration/ardour_smoke.lua > "$stage/reopen.log" 2>&1 || { cat "$stage/reopen.log"; exit 1; }
+          cat "$stage/reopen.log"
+          grep -Fx 'VoiceForge Ardour session restored' "$stage/reopen.log"
       - uses: actions/upload-artifact@v4
         with:
           name: voiceforge-lv2-debian-bookworm-amd64-preview
