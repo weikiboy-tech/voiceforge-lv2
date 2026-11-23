@@ -3,7 +3,7 @@ set -eu
 
 build=${1:-build-linux}
 bundle=$build/lv2/voiceforge.lv2
-ctest --test-dir "$build" --output-on-failure --no-tests=error -R '^dsp$'
+ctest --test-dir "$build" --output-on-failure --no-tests=error -R '^dsp(_voice)?$'
 ctest --test-dir "$build" --output-on-failure --no-tests=error -R '^lv2_host$'
 for file in "$bundle"/manifest.ttl "$bundle"/voiceforge-mono.ttl "$bundle"/voiceforge-stereo.ttl; do
     serdi -i turtle "$file" >/dev/null

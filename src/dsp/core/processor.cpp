@@ -1,4 +1,5 @@
 #include "dsp/core/processor.hpp"
+#include "dsp/core/parameter_math.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -16,12 +17,6 @@ float safeSample(double value) noexcept {
     return std::isfinite(value) ? static_cast<float>(std::clamp(value, -max, max)) : 0.0f;
 }
 
-double approach(double current, double target, double amount) noexcept {
-    const double delta = target - current;
-    if (std::abs(delta) < 1e-6)
-        return target;
-    return current + amount * delta;
-}
 } // namespace
 
 Processor::Processor(double sampleRate, unsigned channels) noexcept
@@ -32,8 +27,12 @@ Processor::Processor(double sampleRate, unsigned channels) noexcept
 
 void Processor::reset() noexcept {
     filters_ = {};
+    equalizer_.reset();
+    compressor_ = {};
+    expander_ = {};
+    deEsser_ = {};
     limiter_.reset();
-    limiterReduction_ = 0.0f;
+    limiterReduction_ = compressorReduction_ = deEsserReduction_ = 0.0f;
     primed_ = false;
 }
 
@@ -46,7 +45,7 @@ float Processor::Filter::process(float signal, float coefficient) noexcept {
 
 void Processor::process(const std::array<const float*, 2>& inputs,
                         const std::array<float*, 2>& outputs,
-                        std::uint32_t frames, Controls controls) noexcept {
+                        std::uint32_t frames, const Controls& controls) noexcept {
     if (frames == 0)
         return;
     const float inputTarget = safeGain(controls.inputDb);
@@ -59,6 +58,10 @@ void Processor::process(const std::array<const float*, 2>& inputs,
         ? std::clamp(controls.limiterCeilingDb, -12.0f, 0.0f) : -1.0f);
     const float coefficientTarget = static_cast<float>(
         -std::expm1(-2.0 * std::numbers::pi * std::clamp(cutoff, 20.0f, 300.0f) / sampleRate_));
+    equalizer_.prepare(controls.equalizer, sampleRate_, !primed_);
+    compressor_.prepare(controls.compressor, sampleRate_, !primed_);
+    expander_.prepare(controls.expander, sampleRate_, !primed_);
+    deEsser_.prepare(controls.deEsser, sampleRate_, !primed_);
     if (!primed_) {
         inputGain_ = inputTarget;
         outputGain_ = outputTarget;
@@ -71,6 +74,8 @@ void Processor::process(const std::array<const float*, 2>& inputs,
     }
 
     double minimumGain = 1.0;
+    double compressorGain = 1.0;
+    double deEsserGain = 1.0;
     for (std::uint32_t frame = 0; frame < frames; ++frame) {
         inputGain_ = approach(inputGain_, inputTarget, smoothing_);
         outputGain_ = approach(outputGain_, outputTarget, smoothing_);
@@ -84,15 +89,20 @@ void Processor::process(const std::array<const float*, 2>& inputs,
             dry[ch] = inputs[ch] ? safeSample(inputs[ch][frame]) : 0.0f;
 
         std::array<double, 2> wet{};
-        double peak = 0.0;
         for (unsigned ch = 0; ch < channels_; ++ch) {
             const float gained = safeSample(static_cast<double>(dry[ch]) * inputGain_);
             const float high = filters_[ch].process(gained, static_cast<float>(highPassCoefficient_));
-            const float filtered = std::lerp(gained, high, static_cast<float>(highPassMix_));
-            wet[ch] = filtered * outputGain_;
-            peak = std::max(peak, std::abs(wet[ch]));
+            wet[ch] = std::lerp(gained, high, static_cast<float>(highPassMix_));
         }
-        const double gain = std::lerp(1.0, limiter_.process(peak, limiterCeiling_), limiterMix_);
+        expander_.process(wet, channels_, smoothing_);
+        equalizer_.process(wet, channels_, smoothing_);
+        const double ess = deEsser_.process(wet, channels_, smoothing_);
+        const double comp = compressor_.process(wet, channels_, smoothing_);
+        deEsserGain = std::min(deEsserGain, std::lerp(1.0, ess, wet_));
+        compressorGain = std::min(compressorGain, std::lerp(1.0, comp, wet_));
+        for (unsigned ch = 0; ch < channels_; ++ch)
+            wet[ch] *= outputGain_;
+        const double gain = std::lerp(1.0, limiter_.process(peakOf(wet, channels_), limiterCeiling_), limiterMix_);
         minimumGain = std::min(minimumGain, std::lerp(1.0, gain, wet_));
         for (unsigned ch = 0; ch < channels_; ++ch) {
             if (outputs[ch])
@@ -100,6 +110,8 @@ void Processor::process(const std::array<const float*, 2>& inputs,
         }
     }
     limiterReduction_ = static_cast<float>(-20.0 * std::log10(minimumGain));
+    compressorReduction_ = static_cast<float>(-decibels(compressorGain));
+    deEsserReduction_ = static_cast<float>(-decibels(deEsserGain));
 }
 
 } // namespace voiceforge

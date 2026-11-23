@@ -57,7 +57,7 @@ void test(LilvWorld* world, const char* uri, unsigned channels) {
     std::unique_ptr<LilvNode, decltype(&lilv_node_free)> id(lilv_new_uri(world, uri), lilv_node_free);
     const auto* plugin = lilv_plugins_get_by_uri(lilv_world_get_all_plugins(world), id.get());
     require(plugin && lilv_plugin_verify(plugin), "discover valid plugin with Lilv");
-    require(lilv_plugin_get_num_ports(plugin) == 2 * channels + 8, "metadata port count");
+    require(lilv_plugin_get_num_ports(plugin) == 2 * channels + 56, "metadata port count");
     require(lilv_plugin_has_latency(plugin) &&
             lilv_plugin_get_latency_port_index(plugin) == 2 * channels + 3, "latency designation");
 
@@ -110,6 +110,31 @@ void test(LilvWorld* world, const char* uri, unsigned channels) {
     lilv_instance_run(instance.get(), 1);
     require(std::abs(out[0] - std::pow(10.0, -12.0 / 20.0)) < 1e-6 &&
             limiterReduction > 5.0f, "limiter control and reduction meter");
+    lilv_instance_deactivate(instance.get());
+
+    const auto connect = [&](const char* symbol, float& storage) {
+        std::unique_ptr<LilvNode, decltype(&lilv_node_free)> name(
+            lilv_new_string(world, symbol), lilv_node_free);
+        const auto* port = lilv_plugin_get_port_by_symbol(plugin, name.get());
+        require(port != nullptr, symbol);
+        lilv_instance_connect_port(instance.get(), lilv_port_get_index(plugin, port), &storage);
+    };
+    float compressorOn = 1.0f, threshold = -20.0f, ratio = 4.0f, attack = 0.1f;
+    float compressorReduction = 0.0f, deEsserReduction = -1.0f;
+    connect("comp_enabled", compressorOn);
+    connect("comp_threshold", threshold);
+    connect("comp_ratio", ratio);
+    connect("comp_attack", attack);
+    connect("comp_reduction", compressorReduction);
+    connect("de_esser_reduction", deEsserReduction);
+    values.inputGain = limiterEnabled = 0.0f;
+    in = {1.0f, -0.5f};
+    lilv_instance_activate(instance.get());
+    for (unsigned i = 0; i < 250; ++i)
+        lilv_instance_run(instance.get(), 1);
+    require(std::abs(out[0] - std::pow(10.0, -15.0 / 20.0)) < 1e-5 &&
+            std::abs(compressorReduction - 15.0f) < 0.001f, "compressor control and reduction meter");
+    require(deEsserReduction == 0.0f, "disabled de-esser reports no reduction");
     lilv_instance_deactivate(instance.get());
 }
 } // namespace

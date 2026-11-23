@@ -5,7 +5,7 @@ Lade das vorab getestete amd64-Artefakt unter **Artifacts** eines erfolgreichen 
 ## Debian-Paket
 
 ```sh
-sudo apt install ./voiceforge-lv2_0.1.0~preview1_amd64.deb
+sudo apt install ./voiceforge-lv2_0.2.0~preview1_amd64.deb
 ```
 
 Das Paket installiert unter `/usr/lib/lv2/voiceforge.lv2`. Entfernen lässt es sich mit `sudo apt remove voiceforge-lv2`.
@@ -19,5 +19,5 @@ Entpacke das Linux-Archiv in ein Verzeichnis und führe dort `sh install.sh` aus
 1. Ardour neu starten und den Plugin-Manager öffnen.
 2. Nach **VoiceForge LV2** suchen.
 3. Im Plugin-Insert der Spur die passende Mono- oder Stereo-Variante hinzufügen.
-4. Die generische Plugin-Oberfläche öffnen und Ein- und Ausgangspegel einstellen. Den Hochpass bei Bedarf auf eine positive Frequenz setzen. **Limiter** aktiviert die Begrenzung mit dem eingestellten Ceiling. **Enabled** schaltet die gesamte Bearbeitung um.
+4. Die generische Plugin-Oberfläche öffnen und Ein- und Ausgangspegel einstellen. Die EQ-Bänder und Dynamikmodule einzeln einschalten. **Limiter** aktiviert die Begrenzung mit dem eingestellten Ceiling. **Enabled** schaltet die gesamte Bearbeitung um.
 5. Mit Sprache abhören und die Session speichern.

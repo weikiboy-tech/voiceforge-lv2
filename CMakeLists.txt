@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(voiceforge VERSION 0.1.0 LANGUAGES CXX)
+project(voiceforge VERSION 0.2.0 LANGUAGES CXX)
 
 include(CTest)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -18,7 +18,9 @@ if(VOICEFORGE_SANITIZERS)
     add_link_options(-fsanitize=address,undefined)
 endif()
 
-add_library(voiceforge_dsp STATIC src/dsp/core/processor.cpp)
+add_library(voiceforge_dsp STATIC
+    src/dsp/core/processor.cpp
+    src/dsp/dynamics/voice_dynamics.cpp)
 target_compile_features(voiceforge_dsp PUBLIC cxx_std_20)
 target_include_directories(voiceforge_dsp PUBLIC src)
 set_target_properties(voiceforge_dsp PROPERTIES POSITION_INDEPENDENT_CODE ON
@@ -28,6 +30,9 @@ if(BUILD_TESTING)
     add_executable(voiceforge_dsp_test tests/unit/processor_test.cpp)
     target_link_libraries(voiceforge_dsp_test PRIVATE voiceforge_dsp)
     add_test(NAME dsp COMMAND voiceforge_dsp_test)
+    add_executable(voiceforge_voice_test tests/unit/voice_test.cpp)
+    target_link_libraries(voiceforge_voice_test PRIVATE voiceforge_dsp)
+    add_test(NAME dsp_voice COMMAND voiceforge_voice_test)
 endif()
 
 if(VOICEFORGE_LV2)

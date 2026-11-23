@@ -13,7 +13,13 @@ constexpr char stereoUri[] = "https://weikiboy-tech.github.io/voiceforge-lv2/ste
 
 enum Control : unsigned {
     inputGain, outputGain, enabled, latency, highPass,
-    limiterEnabled, limiterCeiling, limiterReduction, controlCount
+    limiterEnabled, limiterCeiling, limiterReduction,
+    eqStart, compEnabled = eqStart + 4 * voiceforge::eqFrequencies.size(),
+    compThreshold, compRatio, compAttack, compRelease, compKnee, compMakeup,
+    compMix, compAutoMakeup, compReduction,
+    expEnabled, expThreshold, expRatio, expAttack, expRelease, expRange,
+    deEnabled, deFrequency, deThreshold, deRatio, deAttack, deRelease, deMix,
+    deReduction, controlCount
 };
 
 struct Instance {
@@ -52,17 +58,46 @@ void activate(LV2_Handle handle) {
 void run(LV2_Handle handle, uint32_t frames) {
     auto& instance = *static_cast<Instance*>(handle);
     const auto& ports = instance.controls;
-    const auto value = [&ports](Control port, float fallback) {
+    const auto value = [&ports](std::size_t port, float fallback) {
         return ports[port] && std::isfinite(*ports[port]) ? *ports[port] : fallback;
     };
-    if (ports[latency])
-        *ports[latency] = 0.0f;
-    instance.processor.process(instance.inputs, instance.outputs, frames,
-        {value(inputGain, 0.0f), value(outputGain, 0.0f), value(enabled, 1.0f) >= 0.5f,
-         value(highPass, 0.0f), value(limiterEnabled, 0.0f) >= 0.5f,
-         value(limiterCeiling, -1.0f)});
-    if (ports[limiterReduction])
-        *ports[limiterReduction] = instance.processor.limiterReduction();
+    const auto write = [&ports](Control port, float measured) {
+        if (ports[port])
+            *ports[port] = measured;
+    };
+    voiceforge::Controls settings{};
+    settings.inputDb = value(inputGain, settings.inputDb);
+    settings.outputDb = value(outputGain, settings.outputDb);
+    settings.enabled = value(enabled, 1.0f) >= 0.5f;
+    settings.highPassHz = value(highPass, settings.highPassHz);
+    settings.limiterEnabled = value(limiterEnabled, 0.0f) >= 0.5f;
+    settings.limiterCeilingDb = value(limiterCeiling, settings.limiterCeilingDb);
+    for (std::size_t i = 0; i < settings.equalizer.size(); ++i) {
+        const auto port = eqStart + 4 * i;
+        auto& band = settings.equalizer[i];
+        band = {value(port, 0.0f) >= 0.5f, value(port + 1, band.frequency),
+                value(port + 2, band.gainDb), value(port + 3, band.q)};
+    }
+    auto& comp = settings.compressor;
+    comp = {value(compEnabled, 0.0f) >= 0.5f, value(compThreshold, comp.thresholdDb),
+            value(compRatio, comp.ratio), value(compAttack, comp.attackMs),
+            value(compRelease, comp.releaseMs), value(compKnee, comp.kneeDb),
+            value(compMakeup, comp.makeupDb), value(compMix, comp.mix),
+            value(compAutoMakeup, 0.0f) >= 0.5f};
+    auto& expander = settings.expander;
+    expander = {value(expEnabled, 0.0f) >= 0.5f, value(expThreshold, expander.thresholdDb),
+                value(expRatio, expander.ratio), value(expAttack, expander.attackMs),
+                value(expRelease, expander.releaseMs), value(expRange, expander.rangeDb)};
+    auto& ess = settings.deEsser;
+    ess = {value(deEnabled, 0.0f) >= 0.5f, value(deFrequency, ess.frequency),
+           value(deThreshold, ess.thresholdDb), value(deRatio, ess.ratio),
+           value(deAttack, ess.attackMs), value(deRelease, ess.releaseMs),
+           value(deMix, ess.mix)};
+    instance.processor.process(instance.inputs, instance.outputs, frames, settings);
+    write(latency, 0.0f);
+    write(limiterReduction, instance.processor.limiterReduction());
+    write(compReduction, instance.processor.compressorReduction());
+    write(deReduction, instance.processor.deEsserReduction());
 }
 
 void cleanup(LV2_Handle handle) { delete static_cast<Instance*>(handle); }

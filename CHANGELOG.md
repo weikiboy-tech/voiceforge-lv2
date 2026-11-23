@@ -1,5 +1,12 @@
 # Änderungsverlauf
 
+## 0.2.0~preview1
+
+- Low Shelf, vier parametrische EQ-Bänder und High Shelf zusätzlich zum Hochpass.
+- Stereo-gekoppelter Expander, De-Esser und Soft-Knee-Kompressor. De-Esser und Kompressor liefern Gain-Reduction-Werte.
+- Neue Module starten ausgeschaltet. Die Portsymbole und Indizes der Erstversion bleiben für bestehende Sessions stabil.
+- Signaltests und automatisierte Prüfungen mit AddressSanitizer und UndefinedBehaviorSanitizer.
+
 ## 0.1.0~preview1
 
 - LV2-Adapter für Mono und Stereo.

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "dsp/dynamics/voice_dynamics.hpp"
+#include "dsp/filters/equalizer.hpp"
 #include "dsp/mastering/peak_limiter.hpp"
 
 #include <array>
@@ -14,6 +16,10 @@ struct Controls {
     float highPassHz = 0.0f;
     bool limiterEnabled = false;
     float limiterCeilingDb = -1.0f;
+    EqSettings equalizer = defaultEqSettings();
+    CompressorSettings compressor;
+    ExpanderSettings expander;
+    DeEsserSettings deEsser;
 };
 
 class Processor {
@@ -22,8 +28,10 @@ public:
     void reset() noexcept;
     void process(const std::array<const float*, 2>& inputs,
                  const std::array<float*, 2>& outputs,
-                 std::uint32_t frames, Controls controls) noexcept;
+                 std::uint32_t frames, const Controls& controls) noexcept;
     float limiterReduction() const noexcept { return limiterReduction_; }
+    float compressorReduction() const noexcept { return compressorReduction_; }
+    float deEsserReduction() const noexcept { return deEsserReduction_; }
 
 private:
     struct Filter {
@@ -43,8 +51,14 @@ private:
     double limiterMix_ = 0.0;
     double limiterCeiling_ = 1.0;
     std::array<Filter, 2> filters_{};
+    Equalizer equalizer_;
+    Compressor compressor_;
+    Expander expander_;
+    DeEsser deEsser_;
     PeakLimiter limiter_;
     float limiterReduction_ = 0.0f;
+    float compressorReduction_ = 0.0f;
+    float deEsserReduction_ = 0.0f;
 };
 
 } // namespace voiceforge
