@@ -40,7 +40,9 @@ for attempt in $(seq 1 60); do
     id=$(xdotool search --onlyvisible --name 'VoiceForgeQA.*Ardour|Ardour.*VoiceForgeQA' 2>/dev/null | head -n1 || :)
     if [ -n "$id" ]; then
         xdotool windowfocus "$id"
-        xdotool key m
+        # The rightmost mode buttons sit twenty pixels from the content edge.
+        width=$(xdotool getwindowgeometry --shell "$id" | sed -n 's/^WIDTH=//p')
+        xdotool mousemove --window "$id" "$((width - 21))" 72 click 1
         sleep .4
         break
     fi
