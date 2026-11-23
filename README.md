@@ -4,6 +4,8 @@ VoiceForge LV2 ist ein Offline-Sprachprozessor für Ardour unter Debian. Die Vor
 
 Die eigene Oberfläche zeigt Eingangsspektrum, EQ-Kurve, Pegel, Gain Reduction, True Peak und LUFS. Sie enthält zehn Werkspresets, lokale eigene Presets, speicherbare A/B-Sätze und eine geführte Sprachanalyse.
 
+![VoiceForge LV2 unter einem X11-Testhost auf Debian](docs/images/voiceforge-ui.png)
+
 ## Installation und Verwendung
 
 Das Debian-Paket und das Benutzerarchiv werden nach erfolgreichem Build und Installationstest im [Debian-Workflow](https://github.com/weikiboy-tech/voiceforge-lv2/actions) bereitgestellt. Für die Installation und Verwendung in Ardour siehe [Installation](docs/installation.md).
