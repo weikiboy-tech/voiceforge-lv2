@@ -13,3 +13,14 @@ python tests/audio/make_restoration_fixtures.py build-fixtures
 5. A/B-Dateien bei vergleichbarem Pegel abhören. Erst danach Standardeinstellungen festlegen und weitere Stimmen und Aufnahmen ergänzen.
 
 Die Störungen sind für Regressionstests kontrolliert hinzugefügt. Reale Klicks, Windstöße und verrauschte Raumaufnahmen bleiben Teil der Hörprüfung.
+
+## Messung für 0.3.0~preview1
+
+Der [Debian-Testlauf](https://github.com/weikiboy-tech/voiceforge-lv2/actions/runs/45238720811) renderte die Varianten mit `lv2apply` und richtete die Studio-Dateien an der Referenz aus.
+
+| Test | Messwert |
+| --- | ---: |
+| De-Click, Fehlerenergie in den drei Klickfenstern | −16,49 dB |
+| De-Click, Abstand zwischen Sprachsignal und Fehler außerhalb der Klickfenster | 105,72 dB |
+| De-Plosive, Bassfehler im Plosivfenster | −6,97 dB |
+| Spektrale Rauschreduktion, Energie in der Sprachpause | −11,55 dB |
