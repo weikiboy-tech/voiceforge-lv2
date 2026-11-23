@@ -34,7 +34,8 @@ else
         local processor = ARDOUR.LuaAPI.new_plugin(session, base .. spec.variant, ARDOUR.PluginType.LV2, "Natural Voice")
         assert(not processor:isnil(), "Ardour did not load " .. spec.variant)
         assert(route:add_processor_by_index(processor, 0, nil, true) == 0, "Could not insert VoiceForge")
-        local highpass, valid = ARDOUR.LuaAPI.get_processor_param(processor, 3)
+        -- Ardour counts the latency output control before the high-pass input.
+        local highpass, valid = ARDOUR.LuaAPI.get_processor_param(processor, 4)
         assert(valid and math.abs(highpass - 65.0) < 0.001, "Ardour did not apply the Natural Voice preset")
         assert(ARDOUR.LuaAPI.set_processor_param(processor, 0, spec.gain), "Could not set input gain")
     end
