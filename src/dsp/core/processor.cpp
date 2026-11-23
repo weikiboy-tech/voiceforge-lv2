@@ -78,7 +78,7 @@ void Processor::process(const std::array<const float*, 2>& inputs,
         measurements_ = {};
     }
     meterReset_ = controls.resetMeter;
-    analysis_.command(controls.analyze, controls.resetAnalysis);
+    analysis_.command(controls.analyze, controls.resetAnalysis, channels_);
     if (!primed_) {
         inputGain_ = inputTarget;
         outputGain_ = outputTarget;

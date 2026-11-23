@@ -393,7 +393,7 @@ private:
                       : "Spectral noise settings apply in Studio mode.",12,muted);
             } else label(c,40,502,"Play a section with more audible speech to get recommendations.",13,muted);
         }
-        button(c,{20,579,127,31},"Analyze Voice",StartAnalysis);
+        button(c,{20,579,127,31},progress>0 && progress<1 ? "Stop analysis" : "Analyze Voice",StartAnalysis);
         button(c,{153,579,68,31},"Reset",ResetAnalysis);
         if(progress>=1 && get("recommend_hpf")>0)
             button(c,{227,579,180,31},"Apply recommendations",Apply,true);

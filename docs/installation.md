@@ -26,6 +26,6 @@ Für **De-Click** und **Spectral Noise Reduction** stelle bei gestopptem Transpo
 
 ## Analyse und Vergleich
 
-Spiele einen Abschnitt ab und klicke im Tab **Analyze Voice** auf **Analyze Voice**. Nach acht Sekunden erscheint eine Auswertung. **Apply recommendations** übernimmt die Änderungen. **Compare** wechselt danach zwischen den ursprünglichen und den vorgeschlagenen Werten. **Reset** leert die Analyse.
+Spiele einen Abschnitt ab und klicke im Tab **Analyze Voice** auf **Analyze Voice**. Nach bis zu acht Sekunden erscheint eine Auswertung. **Stop analysis** wertet einen kürzeren Abschnitt aus. **Apply recommendations** übernimmt die Änderungen. **Compare** wechselt danach zwischen den ursprünglichen und den vorgeschlagenen Werten. **Reset** leert die Analyse.
 
 Die Buttons **A**, **B** und **Copy** vergleichen und kopieren Parametersätze. Verwende beim Vergleich denselben Live-/Studio-Modus, wenn der Latenzausgleich unverändert bleiben soll. Eigene Presets lassen sich im Menü speichern, umbenennen und löschen.

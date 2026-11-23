@@ -5,6 +5,7 @@
 
 #include <chrono>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <map>
 #include <string>
@@ -100,6 +101,24 @@ int main(int argc, char** argv) {
     click(display,window,725,31); update();
     click(display,window,274,307); update();
     require(values.contains(6) && values[6] == 65.0f, "factory preset applied via host high pass automation port");
+    click(display,window,725,31); update();
+    click(display,window,355,307); update();
+    for(char keySymbol:std::string("testvoice"))
+        key(display,window,static_cast<KeySym>(keySymbol));
+    key(display,window,0xff0d); update();
+    const auto* config=std::getenv("XDG_CONFIG_HOME");
+    require(config && *config,"use an isolated config directory for preset tests");
+    const auto saved=std::filesystem::path(config)/"voiceforge"/"presets";
+    require(std::filesystem::is_regular_file(saved/"testvoice.vfpreset"), "save a custom preset");
+    click(display,window,450,307); update();
+    key(display,window,'2'); key(display,window,0xff0d); update();
+    require(!std::filesystem::exists(saved/"testvoice.vfpreset") &&
+            std::filesystem::is_regular_file(saved/"testvoice2.vfpreset"), "rename a custom preset");
+    click(display,window,547,307); update();
+    require(std::filesystem::is_regular_file(saved/"testvoice2.vfpreset"),"explicit confirmation before delete");
+    click(display,window,547,307); update();
+    require(!std::filesystem::exists(saved/"testvoice2.vfpreset"),"delete a custom preset");
+    click(display,window,643,196); update();
 
     click(display,window,634,31); update();
     click(display,window,556,31); update();

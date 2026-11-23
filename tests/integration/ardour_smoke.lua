@@ -31,9 +31,11 @@ else
                                 ARDOUR.TrackMode.Normal, true)
         local route = session:route_by_name(spec.name)
         assert(not route:isnil(), "Could not create " .. spec.name)
-        local processor = ARDOUR.LuaAPI.new_plugin(session, base .. spec.variant, ARDOUR.PluginType.LV2, "")
+        local processor = ARDOUR.LuaAPI.new_plugin(session, base .. spec.variant, ARDOUR.PluginType.LV2, "Natural Voice")
         assert(not processor:isnil(), "Ardour did not load " .. spec.variant)
         assert(route:add_processor_by_index(processor, 0, nil, true) == 0, "Could not insert VoiceForge")
+        local highpass, valid = ARDOUR.LuaAPI.get_processor_param(processor, 3)
+        assert(valid and math.abs(highpass - 65.0) < 0.001, "Ardour did not apply the Natural Voice preset")
         assert(ARDOUR.LuaAPI.set_processor_param(processor, 0, spec.gain), "Could not set input gain")
     end
     verify(session)

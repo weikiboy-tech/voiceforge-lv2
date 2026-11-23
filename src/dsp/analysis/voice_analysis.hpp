@@ -27,11 +27,15 @@ public:
         }
     }
 
-    void command(bool start, bool reset) noexcept {
+    void command(bool start, bool reset, unsigned channels = 1) noexcept {
         if (reset && !reset_)
             clear(false);
-        else if (start && !start_)
-            clear(true);
+        else if (start && !start_) {
+            if (active_ && count_ != 0)
+                complete(channels);
+            else
+                clear(true);
+        }
         start_ = start;
         reset_ = reset;
     }
@@ -92,6 +96,7 @@ public:
 private:
     void complete(unsigned channels) noexcept {
         active_ = false;
+        report_.progress = 1.0f;
         const double full = std::max(power_, 1e-20);
         report_.peak = static_cast<float>(std::max(-120.0, decibels(peak_)));
         report_.clipped = peak_ >= 1.0;

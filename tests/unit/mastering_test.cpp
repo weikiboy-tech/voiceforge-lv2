@@ -87,6 +87,18 @@ void analysisTest() {
             report.rms < report.peak, "completed finite voice report based on audio");
     analysis.command(false, true);
     require(report.progress == 0.0f && report.loudness == -120.0f, "analysis resets");
+    analysis.command(true, false);
+    for (unsigned i = 0; i < 16000; ++i)
+        analysis.process({tone(0.10, 600.0, i, 8000.0), 0.0}, 1, true);
+    analysis.command(false, false);
+    analysis.command(true, false);
+    require(report.progress == 1.0f && report.loudness > -30, "stop reports the audio captured so far");
+
+    Spectrum spectrum(48000.0);
+    for (unsigned i = 0; i < 24000; ++i)
+        spectrum.process({tone(0.2, 1000.0, i, 48000.0), 0.0}, 1);
+    require(spectrum.level(6) > spectrum.level(0) + 15 &&
+            spectrum.level(6) > spectrum.level(11) + 15, "metered spectrum tracks actual input frequencies");
 }
 } // namespace
 

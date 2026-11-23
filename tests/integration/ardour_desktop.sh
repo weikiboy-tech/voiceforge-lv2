@@ -15,7 +15,7 @@ cat > "$config/config" <<'EOF'
  <Extra>
   <AudioMIDISetup>
    <EngineStates>
-    <State backend="None (Dummy)" driver="Realtime" device="Silence" input-device="Silence" output-device="Silence" sample-rate="48000" buffer-size="1024" n-periods="0" input-latency="0" output-latency="0" active="1" use-buffered-io="0" midi-option="None"/>
+    <State backend="None (Dummy)" driver="Normal Speed" device="Silence" input-device="Silence" output-device="Silence" sample-rate="48000" buffer-size="1024" n-periods="0" input-latency="0" output-latency="0" active="1" use-buffered-io="0" midi-option="None"/>
    </EngineStates>
   </AudioMIDISetup>
  </Extra>
