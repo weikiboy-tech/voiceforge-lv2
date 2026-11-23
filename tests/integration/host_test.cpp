@@ -63,7 +63,7 @@ void test(LilvWorld* world, const char* uri, unsigned channels) {
     std::unique_ptr<LilvNode, decltype(&lilv_node_free)> id(lilv_new_uri(world, uri), lilv_node_free);
     const auto* plugin = lilv_plugins_get_by_uri(lilv_world_get_all_plugins(world), id.get());
     require(plugin && lilv_plugin_verify(plugin), "discover valid plugin with Lilv");
-    require(lilv_plugin_get_num_ports(plugin) == 2 * channels + 124, "metadata port count");
+    require(lilv_plugin_get_num_ports(plugin) == 2 * channels + 130, "metadata port count");
     require(lilv_plugin_has_latency(plugin) &&
             lilv_plugin_get_latency_port_index(plugin) == 2 * channels + 3, "latency designation");
 
@@ -165,6 +165,17 @@ void test(LilvWorld* world, const char* uri, unsigned channels) {
     }
     lilv_instance_run(instance.get(), 1);
     require(out[0] == 0.6f && (channels == 1 || out[1] == -0.25f), "Studio dry delay matches report");
+    lilv_instance_deactivate(instance.get());
+
+    float polarity = 1.0f;
+    connect("phase_invert", polarity);
+    mode = 0.0f;
+    enabled = 1.0f;
+    in = {0.5f, -0.125f};
+    lilv_instance_activate(instance.get());
+    lilv_instance_run(instance.get(), 1);
+    require(latency == 0.0f && out[0] == -0.5f && (channels == 1 || out[1] == 0.125f),
+            "new input polarity port drives DSP without changing legacy port indices");
     lilv_instance_deactivate(instance.get());
 
     alignas(8) std::array<unsigned char, 2048> inBytes{}, outBytes{};

@@ -100,6 +100,35 @@ void analysisTest() {
     require(spectrum.level(6) > spectrum.level(0) + 15 &&
             spectrum.level(6) > spectrum.level(11) + 15, "metered spectrum tracks actual input frequencies");
 }
+
+void inputStageTest() {
+    Processor processor(48000.0, 1);
+    Controls controls;
+    controls.phaseInvert = true;
+    const float input = 0.25f;
+    float output = 0.0f;
+    processor.process({&input,nullptr},{&output,nullptr},1,controls);
+    require(output == -input, "polarity operates at unity");
+    controls.phaseInvert = false;
+    processor.process({&input,nullptr},{&output,nullptr},1,controls);
+    require(output < -0.24f && output > -0.25f, "polarity automation fades smoothly");
+    processor.reset();
+    controls.dcRemoval = true;
+    for (unsigned i = 0; i < 24000; ++i)
+        processor.process({&input,nullptr},{&output,nullptr},1,controls);
+    require(std::abs(output) < 0.0001f, "DC blocker removes constant offset");
+    processor.reset();
+    double source = 0.0, actual = 0.0;
+    for (unsigned i = 0; i < 9600; ++i) {
+        const float sample = static_cast<float>(tone(0.2, 100.0, i, 48000.0));
+        processor.process({&sample,nullptr},{&output,nullptr},1,controls);
+        if (i > 4800) {
+            source += sample * sample;
+            actual += output * output;
+        }
+    }
+    require(std::abs(10.0 * std::log10(actual / source)) < 0.08, "DC blocker preserves bass");
+}
 } // namespace
 
 int main() {
@@ -108,4 +137,5 @@ int main() {
     truePeakTest();
     riderTest();
     analysisTest();
+    inputStageTest();
 }

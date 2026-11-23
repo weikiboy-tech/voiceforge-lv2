@@ -50,11 +50,11 @@ def main():
                 raise ValueError(f"Factory preset contains an out-of-range value for {symbol}")
     h = ["#pragma once", "namespace voiceforge::ui {", "struct Param {",
          "  const char* symbol; const char* label; float min, max, initial;",
-         "  const char* unit; bool output, toggle;", "};", "inline constexpr Param params[] = {"]
+         "  const char* unit; bool output, toggle; unsigned offset;", "};", "inline constexpr Param params[] = {"]
     quoted = lambda value: json.dumps(value, ensure_ascii=False)
-    for _, symbol, name, lo, hi, d, unit, output, toggle in ports:
+    for index, symbol, name, lo, hi, d, unit, output, toggle in ports:
         fields = [quoted(symbol), quoted(name), *[float_literal(x) for x in (lo, hi, d)], quoted(unit),
-                  str(output).lower(), str(toggle).lower()]
+                  str(output).lower(), str(toggle).lower(), str(index - 2)]
         h.append("  {" + ", ".join(fields) + "},")
     h.extend(["};", "inline constexpr const char* factoryNames[] = {" +
               ", ".join(quoted(x) for x in presets) + "};",

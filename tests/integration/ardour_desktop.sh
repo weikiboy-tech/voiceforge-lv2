@@ -26,7 +26,7 @@ cat > "$config/config" <<'EOF'
  <Extra>
   <AudioMIDISetup>
    <EngineStates>
-    <State backend="None (Dummy)" driver="Normal Speed" device="Silence" input-device="Silence" output-device="Silence" sample-rate="48000" buffer-size="1024" n-periods="0" input-latency="0" output-latency="0" active="1" use-buffered-io="0" midi-option="None"/>
+    <State backend="None (Dummy)" driver="Normal Speed" device="Sine Wave" input-device="Sine Wave" output-device="Sine Wave" sample-rate="48000" buffer-size="1024" n-periods="0" input-latency="0" output-latency="0" active="1" use-buffered-io="0" midi-option="None"/>
    </EngineStates>
   </AudioMIDISetup>
  </Extra>
@@ -60,3 +60,33 @@ xwininfo -root -tree > "$output/ardour-window-tree.txt"
 build-linux/voiceforge_ui_test --desktop "$output/ardour-desktop.png"
 test -n "$id"
 echo "Ardour desktop opened VoiceForgeQA"
+
+for x in 340 448; do
+    xdotool mousemove --window "$id" "$x" 207 click --repeat 2 --delay 80 1
+    panel=
+    for attempt in $(seq 1 20); do
+        panel=$(xdotool search --onlyvisible --name '^VoiceForge LV2 Panel$' 2>/dev/null | head -n1 || :)
+        [ -z "$panel" ] || break
+        sleep .2
+    done
+    test -n "$panel"
+    build-linux/voiceforge_ui_test --desktop "$output/voiceforge-in-ardour-$x.png"
+    build-linux/voiceforge_ui_test --close-editor "$panel"
+    sleep .3
+    if xdotool search --onlyvisible --name '^VoiceForge LV2 Panel$' >/dev/null 2>&1; then
+        echo 'Ardour did not close the native VoiceForge editor.' >&2
+        exit 1
+    fi
+done
+echo "Ardour opened and closed both embedded VoiceForge editors"
+
+xdotool mousemove --window "$id" 305 332 click 1
+xdotool mousemove --window "$id" 209 43 click 1
+xdotool mousemove --window "$id" 159 43 click 1
+sleep 2
+xdotool mousemove --window "$id" 182 43 click 1
+sleep .4
+xdotool windowfocus "$id" key ctrl+s
+sleep .5
+test -n "$(find "$VOICEFORGE_ARDOUR_SESSION/interchange" -type f -name '*.wav' -size +96000c -print -quit)"
+echo "Ardour recorded two seconds from its virtual audio device"

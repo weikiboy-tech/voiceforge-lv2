@@ -7,7 +7,15 @@ permissions:
 
 jobs:
   bookworm:
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     container: debian:bookworm
     steps:
       - name: Prepare Debian build environment
@@ -40,7 +48,7 @@ jobs:
           stage=$(mktemp -d)
           export HOME="$stage/home"
           mkdir "$HOME"
-          tar xzf dist/voiceforge-lv2-linux-amd64.tar.gz -C "$stage"
+          tar xzf "dist/voiceforge-lv2-linux-$(dpkg --print-architecture).tar.gz" -C "$stage"
           sh "$stage/install.sh"
           sh "$stage/install.sh"
           build-linux/voiceforge_host_test "$HOME/.lv2"
@@ -61,16 +69,23 @@ jobs:
           VOICEFORGE_ARDOUR_REOPEN=1 timeout 30 ardour7-lua tests/integration/ardour_smoke.lua > "$stage/reopen.log" 2>&1 || { cat "$stage/reopen.log"; exit 1; }
           cat "$stage/reopen.log"
           grep -Fx 'VoiceForge Ardour session restored' "$stage/reopen.log"
-          xvfb-run -a -s "-screen 0 1440x1000x24 -dpi 96" sh tests/integration/ardour_desktop.sh build-linux/ardour-qa
+          if [ "$(dpkg --print-architecture)" = amd64 ]; then
+            xvfb-run -a -s "-screen 0 1440x1000x24 -dpi 96" sh tests/integration/ardour_desktop.sh build-linux/ardour-qa
+            timeout 30 ardour7-export -b 16 -o "$stage/live.wav" "$VOICEFORGE_ARDOUR_SESSION" VoiceForgeQA
+            timeout 30 ardour7-lua tests/integration/ardour_export_studio.lua > "$stage/studio.log" 2>&1 || { cat "$stage/studio.log"; exit 1; }
+            grep -Fx 'VoiceForge Ardour Studio export prepared' "$stage/studio.log"
+            timeout 30 ardour7-export -b 16 -o "$stage/studio.wav" "$VOICEFORGE_ARDOUR_SESSION" VoiceForgeQA
+            python3 tests/integration/ardour_export_test.py "$stage/live.wav" "$stage/studio.wav"
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ardour-desktop-qa
+          name: ardour-desktop-qa-${{ matrix.arch }}
           path: build-linux/ardour-qa/
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
-          name: voiceforge-lv2-debian-bookworm-amd64-preview
+          name: voiceforge-lv2-debian-bookworm-${{ matrix.arch }}-preview
           path: |
             dist/*.deb
             dist/*.tar.gz

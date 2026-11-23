@@ -62,6 +62,30 @@ void screenshot(Display* d, Window w, const char* filename) {
 
 int main(int argc, char** argv) {
     require(argc == 3, "expected LV2 UI library and screenshot path");
+    if (std::string(argv[1])=="--close-editor") {
+        Display* display=XOpenDisplay(nullptr);
+        require(display!=nullptr,"open desktop display");
+        Window window=std::strtoul(argv[2],nullptr,0);
+        Window root{}, parent{}, *children{};
+        unsigned count{};
+        while (true) {
+            require(XQueryTree(display,window,&root,&parent,&children,&count)!=0,"find editor toplevel");
+            if(children) XFree(children);
+            if(parent==root) break;
+            window=parent;
+        }
+        XEvent event{};
+        event.xclient.type=ClientMessage;
+        event.xclient.window=window;
+        event.xclient.message_type=XInternAtom(display,"WM_PROTOCOLS",False);
+        event.xclient.format=32;
+        event.xclient.data.l[0]=static_cast<long>(XInternAtom(display,"WM_DELETE_WINDOW",False));
+        event.xclient.data.l[1]=CurrentTime;
+        XSendEvent(display,window,False,NoEventMask,&event);
+        XSync(display,False);
+        XCloseDisplay(display);
+        return 0;
+    }
     if (std::string(argv[1])=="--desktop") {
         Display* display=XOpenDisplay(nullptr);
         require(display!=nullptr,"open desktop display");
@@ -126,6 +150,12 @@ int main(int argc, char** argv) {
     require(values[4] == 0.0f,"bypass received by host");
     click(display,window,511,31); update();
     require(values[4] == 1.0f,"A/B restores active comparison values");
+    click(display,window,586,130); update();
+    click(display,window,704,148); update();
+    click(display,window,300,82); update();
+    click(display,window,399,321); update();
+    click(display,window,90,367); update();
+    require(values[128] == 1.0f, "Dereverb UI resolves its physical port after the Atom ports");
     click(display,window,741,81); update();
     click(display,window,74,595); update();
     bool command=false;

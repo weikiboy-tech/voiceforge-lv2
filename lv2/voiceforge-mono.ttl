@@ -12,8 +12,8 @@
     a lv2:Plugin ;
     doap:name "VoiceForge LV2 (Mono)" ;
     doap:license <https://spdx.org/licenses/MIT.html> ;
-    lv2:minorVersion 4 ;
-    lv2:microVersion 1 ;
+    lv2:minorVersion 5 ;
+    lv2:microVersion 0 ;
     lv2:optionalFeature urid:map ;
     lv2:extensionData state:interface ;
     lv2:port
@@ -375,4 +375,28 @@
           atom:supports atom:Bool, atom:Vector ; rsz:minimumSize 2048 ; lv2:portProperty lv2:connectionOptional ],
         [ a lv2:OutputPort, atom:AtomPort ; lv2:index 125 ;
           lv2:symbol "compare_out" ; lv2:name "A/B Notification" ; atom:bufferType atom:Sequence ;
-          atom:supports atom:Vector ; rsz:minimumSize 2048 ; lv2:portProperty lv2:connectionOptional ] .
+          atom:supports atom:Vector ; rsz:minimumSize 2048 ; lv2:portProperty lv2:connectionOptional ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 126 ; lv2:symbol "phase_invert" ; lv2:name "Invert Input Polarity" ;
+          lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 1 ;
+          lv2:portProperty lv2:connectionOptional, lv2:toggled ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 127 ; lv2:symbol "dc_removal" ; lv2:name "Remove DC Offset" ;
+          lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 1 ;
+          lv2:portProperty lv2:connectionOptional, lv2:toggled ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 128 ; lv2:symbol "room_enabled" ; lv2:name "Dereverb (Experimental)" ;
+          lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 1 ;
+          lv2:portProperty lv2:connectionOptional, lv2:toggled ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 129 ; lv2:symbol "room_strength" ; lv2:name "Dereverb Strength" ;
+          lv2:default 0.55 ; lv2:minimum 0 ; lv2:maximum 1 ;
+          lv2:portProperty lv2:connectionOptional ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 130 ; lv2:symbol "room_tail" ; lv2:name "Room Tail Reduction" ;
+          lv2:default 0.45 ; lv2:minimum 0 ; lv2:maximum 1 ;
+          lv2:portProperty lv2:connectionOptional ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 131 ; lv2:symbol "room_speech" ; lv2:name "Dereverb Speech Protection" ;
+          lv2:default 0.8 ; lv2:minimum 0 ; lv2:maximum 1 ;
+          lv2:portProperty lv2:connectionOptional ] .

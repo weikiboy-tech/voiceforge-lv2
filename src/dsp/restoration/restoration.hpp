@@ -12,6 +12,7 @@ struct RestorationSettings {
     DeClickSettings click;
     DePlosiveSettings plosive;
     NoiseSettings noise;
+    RoomSettings room;
     float vadSensitivity = 0.5f;
 };
 
@@ -34,7 +35,7 @@ public:
     void prepare(const RestorationSettings& s, bool initial) noexcept {
         click_.prepare(s.click, rate_, s.studio, initial);
         plosive_.prepare(s.plosive, rate_, initial);
-        noise_.prepare(s.noise, s.studio, initial);
+        noise_.prepare(s.noise, s.studio, initial, s.room);
         vadSensitivity_ = bounded(s.vadSensitivity, .5, 0.0, 1.0);
         targetStudio_ = s.studio ? 1.0 : 0.0;
         if (initial)

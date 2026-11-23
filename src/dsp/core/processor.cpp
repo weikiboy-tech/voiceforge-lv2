@@ -23,11 +23,13 @@ Processor::Processor(double sampleRate, unsigned channels)
     : sampleRate_(bounded(sampleRate, 48000.0, 8000.0, 384000.0)),
       channels_(std::clamp(channels, 1u, 2u)),
       smoothing_(-std::expm1(-1.0 / (0.005 * sampleRate_))),
+      dcStep_(-std::expm1(-2.0 * std::numbers::pi * 5.0 / sampleRate_)),
       restoration_(std::make_unique<Restoration>(sampleRate_)),
       limiter_(sampleRate_), loudness_(sampleRate_), analysis_(sampleRate_), spectrum_(sampleRate_) {}
 
 void Processor::reset() noexcept {
     filters_ = {};
+    dcFilters_ = {};
     restoration_->reset();
     equalizer_.reset();
     compressor_ = {};
@@ -60,6 +62,8 @@ void Processor::process(const std::array<const float*, 2>& inputs,
     const float inputTarget = safeGain(controls.inputDb);
     const float outputTarget = safeGain(controls.outputDb);
     const float wetTarget = controls.enabled ? 1.0f : 0.0f;
+    const double phaseTarget = controls.phaseInvert ? -1.0 : 1.0;
+    const double dcTarget = controls.dcRemoval ? 1.0 : 0.0;
     const float cutoff = std::isfinite(controls.highPassHz) ? controls.highPassHz : 0.0f;
     const float highPassTarget = cutoff > 0.0f ? 1.0f : 0.0f;
     const double limiterTarget = controls.limiterEnabled ? 1.0 : 0.0;
@@ -83,6 +87,8 @@ void Processor::process(const std::array<const float*, 2>& inputs,
         inputGain_ = inputTarget;
         outputGain_ = outputTarget;
         wet_ = wetTarget;
+        phase_ = phaseTarget;
+        dcMix_ = dcTarget;
         highPassCoefficient_ = coefficientTarget;
         highPassMix_ = highPassTarget;
         limiterMix_ = limiterTarget;
@@ -98,6 +104,8 @@ void Processor::process(const std::array<const float*, 2>& inputs,
         inputGain_ = approach(inputGain_, inputTarget, smoothing_);
         outputGain_ = approach(outputGain_, outputTarget, smoothing_);
         wet_ = approach(wet_, wetTarget, smoothing_);
+        phase_ = approach(phase_, phaseTarget, smoothing_);
+        dcMix_ = approach(dcMix_, dcTarget, smoothing_);
         highPassCoefficient_ = approach(highPassCoefficient_, coefficientTarget, smoothing_);
         highPassMix_ = approach(highPassMix_, highPassTarget, smoothing_);
         limiterMix_ = approach(limiterMix_, limiterTarget, smoothing_);
@@ -107,7 +115,9 @@ void Processor::process(const std::array<const float*, 2>& inputs,
             dry[ch] = inputs[ch] ? safeSample(inputs[ch][frame]) : 0.0f;
             peakIn = std::max(peakIn, std::abs(dry[ch]));
             inputPower += dry[ch] * dry[ch];
-            wet[ch] = dry[ch] * inputGain_;
+            const float sample = safeSample(dry[ch] * inputGain_ * phase_);
+            const float blocked = dcFilters_[ch].process(sample, static_cast<float>(dcStep_));
+            wet[ch] = std::lerp(sample, blocked, static_cast<float>(dcMix_));
         }
 
         analysis_.process(dry, channels_, voiceActive());

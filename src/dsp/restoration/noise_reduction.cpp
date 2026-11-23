@@ -8,6 +8,7 @@ namespace voiceforge {
 NoiseReduction::NoiseReduction(double rate) noexcept {
     while (size_ < maxSize && size_ < rate * (1024.0 / 48000.0))
         size_ *= 2;
+    hopSeconds_ = size_ / (4.0 * rate);
 
     unsigned mirror = 0;
     for (unsigned i = 0; i < size_; ++i) {
@@ -30,9 +31,12 @@ void NoiseReduction::reset() noexcept {
     bins_.fill({});
     position_ = learned_ = 0;
     mix_ = 0.0;
+    noiseMix_ = roomMix_ = 0.0;
+    roomEnvelope_ = 0.0;
 }
 
-void NoiseReduction::prepare(const NoiseSettings& s, bool active, bool initial) noexcept {
+void NoiseReduction::prepare(const NoiseSettings& s, bool active, bool initial,
+                             const RoomSettings& room) noexcept {
     const double reduction = bounded(s.reductionDb, 12.0, 0.0, 24.0);
     artifact_ = bounded(s.artifactControl, .55, 0.0, 1.0);
     floor_ = amplitude(-reduction);
@@ -41,15 +45,27 @@ void NoiseReduction::prepare(const NoiseSettings& s, bool active, bool initial) 
     sensitivity_ = std::lerp(.75, 1.8, bounded(s.sensitivity, .55, 0.0, 1.0));
     smoothing_ = bounded(s.smoothing, .55, 0.0, 1.0);
     protection_ = bounded(s.speechProtection, .65, 0.0, 1.0);
-    targetMix_ = active && s.enabled && reduction != 0.0 ? 1.0 : 0.0;
-    if (initial)
+    const double tail = bounded(room.tail, .45, 0.0, 1.0);
+    const double strength = bounded(room.strength, .55, 0.0, 1.0);
+    roomDepth_ = strength * (1.0 - amplitude(-std::lerp(3.0, 15.0, tail)));
+    roomDecay_ = std::exp(-hopSeconds_ / std::lerp(.060, .320, tail));
+    roomProtection_ = bounded(room.speechProtection, .8, 0.0, 1.0);
+    noiseTarget_ = active && s.enabled && reduction != 0.0 ? 1.0 : 0.0;
+    roomTarget_ = active && room.enabled && strength > 0.0 ? 1.0 : 0.0;
+    targetMix_ = std::max(noiseTarget_, roomTarget_);
+    if (initial) {
         mix_ = targetMix_;
+        noiseMix_ = noiseTarget_;
+        roomMix_ = roomTarget_;
+    }
 }
 
 std::array<double, 2> NoiseReduction::process(const std::array<double, 2>& input,
                                              unsigned channels, bool speech,
                                              double smoothing) noexcept {
     mix_ = approach(mix_, targetMix_, smoothing);
+    noiseMix_ = approach(noiseMix_, noiseTarget_, smoothing);
+    roomMix_ = approach(roomMix_, roomTarget_, smoothing);
     auto output = history_[position_];
     for (unsigned ch = 0; ch < channels; ++ch)
         output[ch] += mix_ * delta_[position_][ch];
@@ -95,7 +111,12 @@ void NoiseReduction::analyze(unsigned channels, bool speech) noexcept {
         framePower = std::max(framePower, channelPower / size_);
         transform(spectrum, false);
     }
-    const bool learn = !speech && framePower < thresholdPower_ && framePower > 1e-11;
+    const bool learn = noiseTarget_ > 0.0 && !speech && framePower < thresholdPower_ && framePower > 1e-11;
+    const double previousRoom = roomEnvelope_ * roomDecay_;
+    roomEnvelope_ = roomMix_ > 0.0 ? std::max(framePower, previousRoom) : 0.0;
+    const double release = previousRoom > 1e-12
+        ? std::clamp((0.85 - framePower / previousRoom) / 0.50, 0.0, 1.0) : 0.0;
+    const double roomAmount = roomMix_ * roomDepth_ * release * (speech ? 1.0 - 0.88 * roomProtection_ : 1.0);
     const unsigned nyquist = size_ / 2;
     for (unsigned k = 0; k <= nyquist; ++k) {
         auto& bin = bins_[k];
@@ -109,7 +130,21 @@ void NoiseReduction::analyze(unsigned channels, bool speech) noexcept {
         }
         const double excess = sensitivity_ * bin.noise / std::max(bin.power, 1e-16);
         const double wiener = std::clamp(1.0 - excess, floor_, 1.0);
-        target_[k] = speech ? std::lerp(wiener, 1.0, 0.50 * protection_) : wiener;
+        const double noiseGain = speech ? std::lerp(wiener, 1.0, 0.50 * protection_) : wiener;
+        double roomGain = 1.0;
+        if (roomMix_ > 0.0) {
+            const double tail = bin.tail * roomDecay_;
+            bin.tail = std::max(bin.power, tail);
+            if (bin.tail < 1e-20)
+                bin.tail = 0.0;
+            // Respond only to a decay after a louder event in the same band.
+            const double decay = tail > 1e-14
+                ? std::clamp((0.72 - bin.power / tail) / 0.52, 0.0, 1.0) : 0.0;
+            roomGain -= roomAmount * decay;
+        } else {
+            bin.tail = 0.0;
+        }
+        target_[k] = std::lerp(1.0, noiseGain, noiseMix_) * roomGain;
     }
     if (learn && learned_ < 24)
         ++learned_;

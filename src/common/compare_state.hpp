@@ -7,6 +7,8 @@
 
 namespace voiceforge {
 inline constexpr unsigned compareCapacity = 160;
+inline constexpr unsigned compareInputOffset = 122;
+inline constexpr unsigned compareOutputOffset = compareInputOffset + 1;
 struct CompareState {
     LV2_Atom_Vector_Body vector{sizeof(float), 0};
     // Selection, presence of A/B, then both port-indexed snapshots.

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
-project(voiceforge VERSION 0.4.0 LANGUAGES CXX)
-set(voiceforge_package_version "${PROJECT_VERSION}~preview2")
+project(voiceforge VERSION 0.5.0 LANGUAGES CXX)
+set(voiceforge_package_version "${PROJECT_VERSION}~preview1")
 
 include(CTest)
 set(CMAKE_CXX_EXTENSIONS OFF)

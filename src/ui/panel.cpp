@@ -86,14 +86,16 @@ Values defaults() {
 
 struct Group { const char* name; std::vector<std::string_view> prefix; };
 const std::array<std::vector<Group>,3> groups{{
-    {{"Input / EQ", {"input_gain","high_pass","low_shelf","eq_","high_shelf"}},
+    {{"Input / EQ", {"input_gain","high_pass","low_shelf","eq_","high_shelf","phase_invert","dc_removal"}},
      {"Compressor", {"comp_"}}, {"De-Esser", {"de_esser_"}}, {"Expander / Rider", {"exp_","rider_","vad_"}}},
-    {{"Noise Reduction", {"noise_"}}, {"De-Click", {"de_click_"}}, {"De-Plosive", {"de_plosive_"}}},
+    {{"Noise Reduction", {"noise_"}}, {"De-Click", {"de_click_"}}, {"De-Plosive", {"de_plosive_"}},
+     {"Dereverb", {"room_"}}},
     {{"Output / Limiter", {"output_gain","limiter_"}}}
 }};
 enum Action { SelectPage=1000, SelectGroup=1010, Mode=1020, Bypass, Presets, SideA, SideB,
               Copy, ResetMeter, StartAnalysis, ResetAnalysis, Apply, Undo, PrevPreset, NextPreset,
-              LoadPreset, SavePreset, RenamePreset, DeletePreset, ClosePreset, Scale };
+              LoadPreset, SavePreset, RenamePreset, DeletePreset, ClosePreset, Scale,
+              Differences, CloseDifferences, PrevDifference, NextDifference };
 struct Hit { Rect rect; int id; };
 enum class Edit { none, create, rename };
 
@@ -126,13 +128,17 @@ public:
     }
     Window window{};
     void incoming(unsigned port, float data) {
-        if (port<audio_ || port>=audio_+parameterCount || !std::isfinite(data)) return;
-        const auto i=port-audio_;
+        if (port<audio_ || !std::isfinite(data)) return;
+        const unsigned offset=port-audio_;
+        const auto found=std::lower_bound(std::begin(params),std::end(params),offset,
+            [](const Param& entry,unsigned index){return entry.offset<index;});
+        if (found==std::end(params) || found->offset!=offset) return;
+        const auto i=static_cast<unsigned>(found-std::begin(params));
         if (drag_!=static_cast<int>(i) && values_[i]!=data) { values_[i]=data; dirty_=true; }
     }
     void incoming(unsigned port, unsigned size, unsigned protocol, const void* data) {
         if (!ids_.eventTransfer || protocol != ids_.eventTransfer ||
-            port != audio_ + parameterCount + 1 || size != sizeof(LV2_Atom) + sizeof(CompareState))
+            port != audio_ + compareOutputOffset || size != sizeof(LV2_Atom) + sizeof(CompareState))
             return;
         LV2_Atom atom{};
         std::memcpy(&atom,data,sizeof(atom));
@@ -142,11 +148,15 @@ public:
         if (state.vector.child_type != ids_.floating || state.vector.child_size != sizeof(float)) return;
         if (!received_) {
             side_=state.values[0]>.5f ? 1:0;
+            const float oldCount=state.values.back();
+            const unsigned stateCount=std::isfinite(oldCount) && oldCount>=1 && oldCount<=compareCapacity-1
+                ? static_cast<unsigned>(oldCount) : compareInputOffset;
             for (unsigned s=0;s<2;++s) {
                 haveSide_[s]=state.values[1+s]>.5f;
                 for (unsigned i=0;i<parameterCount;++i) {
                     const auto value=state.values[3+s*compareCapacity+i];
-                    compare_[s][i]=std::isfinite(value) ? std::clamp(value,params[i].min,params[i].max) : params[i].initial;
+                    compare_[s][i]=i<stateCount && std::isfinite(value)
+                        ? std::clamp(value,params[i].min,params[i].max) : params[i].initial;
                 }
             }
         }
@@ -177,7 +187,7 @@ public:
         const auto now=Clock::now();
         if (ids_.eventTransfer && !received_ && requests_<12 && now>=nextRequest_) {
             struct { LV2_Atom header; int32_t value; } request{{sizeof(int32_t),ids_.boolean},1};
-            write_(controller_,audio_+parameterCount,sizeof(request),ids_.eventTransfer,&request);
+            write_(controller_,audio_+compareInputOffset,sizeof(request),ids_.eventTransfer,&request);
             ++requests_;
             nextRequest_=now+std::chrono::milliseconds(350);
         }
@@ -195,12 +205,12 @@ private:
     double scaleY() const { return static_cast<double>(pixelsH_)/height; }
     float get(std::string_view s) const { const int i=parameter(s); return i<0 ? 0.0f : values_[i]; }
     void touching(int i,bool active) {
-        if (touch_ && touch_->touch) touch_->touch(touch_->handle,static_cast<unsigned>(i)+audio_,active);
+        if (touch_ && touch_->touch) touch_->touch(touch_->handle,params[i].offset+audio_,active);
     }
     void set(int i, float value) {
         if (i<0 || params[i].output) return;
         values_[i]=std::clamp(value,params[i].min,params[i].max);
-        write_(controller_,static_cast<unsigned>(i)+audio_,sizeof(float),0,&values_[i]);
+        write_(controller_,params[i].offset+audio_,sizeof(float),0,&values_[i]);
         dirty_=true;
     }
     void set(std::string_view s,float v) { set(parameter(s),v); }
@@ -365,7 +375,7 @@ private:
                   "    Compressor "+format(get("comp_reduction"),"db")+"    Limiter "+
                   format(get("limiter_reduction"),"db"),12,muted);
         }
-        if (page_==1 && get("mode")<.5f && group_<2)
+        if (page_==1 && get("mode")<.5f && group_!=2)
             label(c,600,327,"Select Studio to use this module",12,cyan);
     }
     void drawAnalysis(cairo_t* c) {
@@ -420,6 +430,51 @@ private:
         }
         if (!status_.empty()) label(c,253,414,status_,13,text);
     }
+    void drawDifferences(cairo_t* c) {
+        color(c,{.025,.04,.05,.83});
+        cairo_rectangle(c,0,0,width,height); cairo_fill(c);
+        box(c,{165,119,610,378},surface);
+        label(c,187,153,"A/B differences",22,text,true);
+        button(c,{676,132,76,30},"Close",CloseDifferences);
+        const Values& a=side_==0 ? values_ : compare_[0];
+        const Values& b=side_==1 ? values_ : compare_[1];
+        std::vector<unsigned> changed;
+        if(haveSide_[1-side_]) {
+            for(unsigned i=0;i<parameterCount;++i)
+                if(persistent(params[i]) && std::abs(a[i]-b[i])>1e-4f)
+                    changed.push_back(i);
+        }
+        if(changed.empty()) {
+            label(c,188,199,haveSide_[1-side_] ? "Both settings are the same." :
+                  "Switch sides or copy the current settings to start a comparison.",14,muted);
+            return;
+        }
+        constexpr unsigned pageSize=7;
+        const unsigned pages=static_cast<unsigned>((changed.size()+pageSize-1)/pageSize);
+        differencePage_=std::min(differencePage_,pages-1);
+        label(c,187,189,"Parameter",12,muted,true);
+        label(c,521,189,"A",12,cyan,true); label(c,639,189,"B",12,cyan,true);
+        for(unsigned j=0;j<pageSize;++j) {
+            const unsigned pos=differencePage_*pageSize+j;
+            if(pos>=changed.size()) break;
+            const unsigned i=changed[pos];
+            const auto& p=params[i];
+            const double y=216+31*j;
+            stroke(c,187,y-12,752,y-12,line);
+            label(c,187,y+7,p.label,13);
+            const auto render=[&](float v) -> std::string {
+                if(std::string_view(p.symbol)=="mode") return v>.5f ? "Studio":"Live";
+                return p.toggle ? (v>.5f ? "On":"Off") : format(v,p.unit);
+            };
+            label(c,521,y+7,render(a[i]),13);
+            label(c,639,y+7,render(b[i]),13);
+        }
+        if(pages>1) {
+            button(c,{187,445,34,29},"‹",PrevDifference);
+            button(c,{228,445,34,29},"›",NextDifference);
+            label(c,275,464,std::to_string(differencePage_+1)+" / "+std::to_string(pages),12,muted);
+        }
+    }
     void draw() {
         hits_.clear();
         cairo_t* c=cairo_create(canvas_);
@@ -437,8 +492,10 @@ private:
         for(unsigned i=0;i<tabs.size();++i)
             button(c,{20.0+227*i,63,218,36},tabs[i],SelectPage+i,page_==i);
         graph(c); meters(c);
+        button(c,{536,117,137,26},"A/B differences",Differences);
         if (page_==3) drawAnalysis(c); else drawControls(c);
         if (presetOpen_) { hits_.clear(); drawPresets(c); }
+        if (differencesOpen_) { hits_.clear(); drawDifferences(c); }
         cairo_destroy(c);
         cairo_surface_flush(canvas_); XFlush(display_);
     }
@@ -450,7 +507,7 @@ private:
                 touching(hit->id,true);
                 set(hit->id,fromScale(hit->id,toScale(hit->id,values_[hit->id])+(e.button==4?.03:-.03)));
                 touching(hit->id,false);
-            } else if(!presetOpen_ && y>305) {
+            } else if(!presetOpen_ && !differencesOpen_ && y>305) {
                 scroll_=std::clamp(scroll_+(e.button==4?-1:1),0,maxScroll_); dirty_=true;
             }
             return;
@@ -481,13 +538,14 @@ private:
         message.header={sizeof(message.state),ids_.vector};
         message.state.vector.child_type=ids_.floating;
         message.state.values[0]=static_cast<float>(side_);
+        message.state.values.back()=static_cast<float>(parameterCount);
         for (unsigned s=0;s<2;++s) {
             message.state.values[1+s]=haveSide_[s] ? 1.0f : 0.0f;
             for (unsigned i=0;i<parameterCount;++i)
                 if (persistent(params[i]))
                     message.state.values[3+s*compareCapacity+i]=compare_[s][i];
         }
-        write_(controller_,audio_+parameterCount,sizeof(message),ids_.eventTransfer,&message);
+        write_(controller_,audio_+compareInputOffset,sizeof(message),ids_.eventTransfer,&message);
     }
     void action(int id) {
         if(id>=SelectPage && id<SelectPage+4) { page_=id-SelectPage; group_=0; scroll_=0; }
@@ -498,6 +556,10 @@ private:
             case SideA: switchSide(0); break;
             case SideB: switchSide(1); break;
             case Copy: compare_[1-side_]=values_; haveSide_[1-side_]=true; saveComparison(); break;
+            case Differences: differencesOpen_=true; differencePage_=0; break;
+            case CloseDifferences: differencesOpen_=false; break;
+            case PrevDifference: if(differencePage_>0) --differencePage_; break;
+            case NextDifference: ++differencePage_; break;
             case Presets: presetOpen_=true; refreshPresets(); break;
             case ClosePreset: presetOpen_=false; edit_=Edit::none; status_.clear(); break;
             case PrevPreset: preset_=(preset_+names_.size()-1)%names_.size(); status_.clear(); break;
@@ -608,6 +670,10 @@ private:
             else if(editing_.size()<28 && ((bytes[0]>='A' && bytes[0]<='Z') ||
                    (bytes[0]>='a' && bytes[0]<='z') || (bytes[0]>='0' && bytes[0]<='9') ||
                    bytes[0]==' ' || bytes[0]=='_' || bytes[0]=='-')) editing_+=bytes[0];
+        } else if(differencesOpen_) {
+            if(code==XK_Left) action(PrevDifference);
+            if(code==XK_Right) action(NextDifference);
+            if(code==XK_Escape) action(CloseDifferences);
         } else if(presetOpen_) {
             if(code==XK_Left) action(PrevPreset);
             if(code==XK_Right) action(NextPreset);
@@ -633,10 +699,10 @@ private:
     std::size_t preset_=0;
     std::string editing_,status_;
     Edit edit_=Edit::none;
-    unsigned page_=0,group_=0;
+    unsigned page_=0,group_=0,differencePage_=0;
     int pixelsW_=width,pixelsH_=height,side_=0,scroll_=0,maxScroll_=0,drag_=-1,selected_=-1,pulse_=-1;
     double requestedScale_=1.0,origin_=0,dragWidth_=1,dragValue_=0;
-    bool presetOpen_=false,dirty_=true,beforeAnalysis_=false;
+    bool presetOpen_=false,differencesOpen_=false,dirty_=true,beforeAnalysis_=false;
     bool received_=false;
     unsigned requests_=0;
     Clock::time_point nextRequest_{};

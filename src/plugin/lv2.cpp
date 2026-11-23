@@ -32,8 +32,10 @@ enum Control : unsigned {
     analyze, analysisReset, analysisProgress, analysisPeak, analysisRms, analysisFloor,
     analysisRange, analysisSpeech, analysisLow, analysisHigh, analysisSibilance,
     analysisClip, analysisLoudness, recommendHpf, recommendComp, recommendEss, recommendNoise,
-    sampleRate, spectrumStart, controlCount = spectrumStart + voiceforge::Spectrum::frequencies.size()
+    sampleRate, spectrumStart, phaseInvert = spectrumStart + voiceforge::Spectrum::frequencies.size() + 2,
+    dcRemoval, roomEnabled, roomStrength, roomTail, roomSpeech, controlCount
 };
+static_assert(phaseInvert == voiceforge::compareOutputOffset + 1);
 static_assert(controlCount <= voiceforge::compareCapacity && std::atomic<float>::is_always_lock_free);
 
 struct Instance {
@@ -128,12 +130,12 @@ void connectPort(LV2_Handle handle, uint32_t port, void* data) {
         instance.inputs[port] = static_cast<const float*>(data);
     else if (port < 2 * channels)
         instance.outputs[port - channels] = static_cast<float*>(data);
+    else if (port == 2 * channels + voiceforge::compareInputOffset)
+        instance.compareIn = static_cast<const LV2_Atom_Sequence*>(data);
+    else if (port == 2 * channels + voiceforge::compareOutputOffset)
+        instance.compareOut = static_cast<LV2_Atom_Sequence*>(data);
     else if (port < 2 * channels + controlCount)
         instance.controls[port - 2 * channels] = static_cast<float*>(data);
-    else if (port == 2 * channels + controlCount)
-        instance.compareIn = static_cast<const LV2_Atom_Sequence*>(data);
-    else if (port == 2 * channels + controlCount + 1)
-        instance.compareOut = static_cast<LV2_Atom_Sequence*>(data);
 }
 
 void activate(LV2_Handle handle) {
@@ -194,6 +196,11 @@ void run(LV2_Handle handle, uint32_t frames) {
              value(noiseSmoothing, noise.smoothing), value(noiseSpeechProtection, noise.speechProtection),
              value(noiseArtifactControl, noise.artifactControl)};
     restoration.vadSensitivity = value(vadSensitivity, restoration.vadSensitivity);
+    auto& room = restoration.room;
+    room = {value(roomEnabled, 0.0f) >= 0.5f, value(roomStrength, room.strength),
+            value(roomTail, room.tail), value(roomSpeech, room.speechProtection)};
+    settings.phaseInvert = value(phaseInvert, 0.0f) >= 0.5f;
+    settings.dcRemoval = value(dcRemoval, 0.0f) >= 0.5f;
     auto& rider = settings.rider;
     rider = {value(riderOn, 0.0f) >= 0.5f, value(riderTarget, rider.targetDb),
              value(riderSpeed, rider.speedMs), value(riderMaxGain, rider.maximumGainDb),

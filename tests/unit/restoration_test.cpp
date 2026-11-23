@@ -131,6 +131,45 @@ void noiseTest() {
     require(original > 4.0 * filtered, "stationary noise suppression of at least 6 dB");
 }
 
+void roomTest() {
+    auto spectral = std::make_unique<NoiseReduction>(rate);
+    RoomSettings room;
+    room.enabled = true;
+    room.strength = 0.9f;
+    room.tail = 0.8f;
+    spectral->prepare({}, true, true, room);
+    double direct = 0.0, directAfter = 0.0, late = 0.0, lateAfter = 0.0;
+    const auto signal = [](unsigned i) {
+        if (i < 4800 || i >= 24000)
+            return 0.0;
+        const double gain = i < 9600 ? 0.32 : 0.11 * std::exp((9600.0 - i) / 4800.0);
+        return gain * tone(1000.0, i);
+    };
+    const auto delay = spectral->delay();
+    for (unsigned i = 0; i < 26000 + delay; ++i) {
+        const double x = signal(i);
+        const auto y = spectral->process({x, -x}, 2, false, stepForMs(5.0, rate));
+        require(y[1] == -y[0] && std::isfinite(y[0]), "room mask keeps channels linked and finite");
+        if (i < delay)
+            continue;
+        const unsigned t = i - delay;
+        const double ref = signal(t);
+        if (t >= 6000 && t < 8600) {
+            direct += ref * ref;
+            directAfter += y[0] * y[0];
+        }
+        if (t >= 11200 && t < 16000) {
+            late += ref * ref;
+            lateAfter += y[0] * y[0];
+        }
+    }
+    const double directLoss = 10 * std::log10(direct / directAfter);
+    const double lateLoss = 10 * std::log10(late / lateAfter);
+    std::cout << "Dereverb: " << directLoss << " dB direct, " << lateLoss << " dB late\n";
+    require(std::abs(directLoss) < 0.4, "room attenuation preserves steady direct signal");
+    require(lateLoss > 4.0, "room attenuation reduces late decay");
+}
+
 void modeSwitchTest() {
     Processor processor(rate, 1);
     Controls controls;
@@ -154,6 +193,7 @@ int main() {
     require(plosiveTest(52.0) > 2.5, "De-Plosive attenuates a low-frequency burst");
     require(std::abs(plosiveTest(700.0)) < 0.1, "De-Plosive protects upper speech frequencies");
     noiseTest();
+    roomTest();
     modeSwitchTest();
     for (double sampleRate : {8000.0, 44100.0, 48000.0, 96000.0, 192000.0, 384000.0})
         latencyTest(sampleRate);

@@ -30,6 +30,7 @@ struct Controls {
     RiderSettings rider;
     bool resetMeter = false, analyze = false, resetAnalysis = false;
     bool spectrum = false;
+    bool phaseInvert = false, dcRemoval = false;
 };
 
 class Processor {
@@ -64,9 +65,11 @@ private:
     double wet_ = 1.0;
     double highPassCoefficient_ = 0.0;
     double highPassMix_ = 0.0;
+    double phase_ = 1.0, dcMix_ = 0.0, dcStep_;
     double limiterMix_ = 0.0;
     double limiterCeiling_ = 1.0;
     std::array<Filter, 2> filters_{};
+    std::array<Filter, 2> dcFilters_{};
     std::unique_ptr<Restoration> restoration_;
     Equalizer equalizer_;
     LevelRider rider_;
