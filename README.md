@@ -1,10 +1,10 @@
 # VoiceForge LV2
 
-VoiceForge LV2 ist ein Offline-Sprachprozessor für Ardour unter Debian. Die Vorabversion 0.4.0 enthält Mono und Stereo, Pegelregler, Hochpass, Sechsband-EQ, Expander, De-Esser, De-Plosive, Kompressor, Level Rider und Sample-Peak-Limiter. Studio ergänzt De-Click und spektrale Rauschreduktion. Live meldet null zusätzliche Samples Verzögerung.
+VoiceForge LV2 ist ein Offline-Sprachprozessor für Ardour unter Debian. Die Vorabversion 0.5.0 enthält Mono und Stereo, Pegelregler, Polaritätsumkehr, DC-Offset-Entfernung, Hochpass, Sechsband-EQ, Expander, De-Esser, De-Plosive, Kompressor, Level Rider und Sample-Peak-Limiter. Studio ergänzt De-Click, spektrale Rauschreduktion und experimentelle Nachhallabsenkung. Live meldet null zusätzliche Samples Verzögerung.
 
 Die eigene Oberfläche zeigt Eingangsspektrum, EQ-Kurve, Pegel, Gain Reduction, True Peak und LUFS. Sie enthält zehn Werkspresets, lokale eigene Presets, speicherbare A/B-Sätze und eine geführte Sprachanalyse.
 
-![VoiceForge LV2 unter einem X11-Testhost auf Debian](docs/images/voiceforge-ui.png)
+![VoiceForge LV2 im Mixer von Ardour 7.3 auf Debian 12](docs/images/voiceforge-ui.png)
 
 ## Installation und Verwendung
 
@@ -22,4 +22,4 @@ cmake --build build-win --config Release
 ctest --test-dir build-win -C Release --output-on-failure
 ```
 
-Die [Testdokumentation](docs/testing.md) nennt den Prüfstand für Debian und Ardour. Die Hardwareprüfung am Zielrechner steht aus. Dereverb bleibt zurückgestellt, bis eine Implementierung die Klangprüfung besteht.
+Die [Testdokumentation](docs/testing.md) nennt den Prüfstand für Debian und Ardour. Die Hardwareprüfung am Zielrechner steht aus. Die optionale Nachhallabsenkung ist experimentell und standardmäßig aus.

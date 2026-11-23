@@ -25,6 +25,10 @@ Neben dem Hochpass stehen zwei Shelves und vier Glockenfilter zur Verfügung. Je
 
 Studio verzögert das Signal um die FFT-Größe plus die Klickvorschau. Bei 48 kHz sind das 1.058 Samples (22,04 ms), auch bei deaktivierten Studio-Modulen. Live hat keine zusätzliche Sample-Verzögerung.
 
+Optionaler DC-Blocker und Polaritätsumkehr arbeiten vor der Restaurationskette. Die Überblendung des 5-Hz-DC-Blockers und der Vorzeichenwechsel werden mit 5 ms geglättet.
+
+Der experimentelle Dereverb nutzt dieselbe Studio-STFT und benötigt daher keine zusätzliche Verzögerung. Im Abklingen nach lauten Ereignissen begrenzen gleitende spektrale und breitbandige Hüllkurven die späten Anteile. Der Sprachschutz reduziert den Eingriff bei erkannter Sprache. Das Verfahren ist konservativ, werkseitig ausgeschaltet und kann bei starkem Nachhall oder stark überlappenden Reflexionen zu wenig trennen. Bewertung mit realen Raumaufnahmen steht aus. [Hintergrund zur spektralen Nachhallabsenkung](https://www.ee.columbia.edu/~dpwe/papers/LebBD01-ssdereverv.pdf)
+
 ## Level Rider, Messung und Analyse
 
 Der Level Rider kombiniert ein geglättetes Quadratmittel mit der Spracherkennung. Bei geringer Pegelenergie und in Pausen geht er zurück auf Einheitsverstärkung. Ziel, maximale Anhebung, maximale Absenkung, Zeitkonstante und Einfluss der Spracherkennung sind einstellbar.

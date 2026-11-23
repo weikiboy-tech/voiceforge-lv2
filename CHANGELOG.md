@@ -1,5 +1,12 @@
 # Änderungsverlauf
 
+## 0.5.0~preview1
+
+- Geglättete Polaritätsumkehr und zuschaltbare DC-Offset-Entfernung.
+- Experimentelle spektrale Nachhallabsenkung im Studio-Modus.
+- A/B-Liste für abweichende Einstellungen bei weiterhin lesbarem früheren Session-State.
+- Native Debian-CI für amd64 und arm64 sowie erweiterte Ardour-Workflow-Tests.
+
 ## 0.4.0~preview2
 
 - Native X11/Cairo-Oberfläche mit EQ-Kurve, Eingangsspektrum, Pegeln und Gain Reduction.

@@ -1,14 +1,14 @@
-# Installation für Ardour unter Debian 12 (amd64)
+# Installation für Ardour unter Debian 12
 
-Lade das vorab getestete amd64-Artefakt unter **Artifacts** eines erfolgreichen [GitHub-Actions-Laufs](https://github.com/weikiboy-tech/voiceforge-lv2/actions) herunter und entpacke den Actions-Download.
+Lade das vorab getestete Artefakt für amd64 oder arm64 unter **Artifacts** des erfolgreichen [GitHub-Actions-Laufs](https://github.com/weikiboy-tech/voiceforge-lv2/actions/runs/45246651264) herunter und entpacke den Actions-Download. `dpkg --print-architecture` zeigt die Architektur des Zielrechners.
 
 ## Debian-Paket
 
 ```sh
-sudo apt install ./voiceforge-lv2_0.4.0~preview2_amd64.deb
+sudo apt install ./voiceforge-lv2_0.5.0~preview1_amd64.deb
 ```
 
-Das Paket installiert unter `/usr/lib/lv2/voiceforge.lv2`. Entfernen lässt es sich mit `sudo apt remove voiceforge-lv2`.
+Auf arm64 verwende entsprechend `voiceforge-lv2_0.5.0~preview1_arm64.deb`. Das Paket installiert unter `/usr/lib/lv2/voiceforge.lv2`. Entfernen lässt es sich mit `sudo apt remove voiceforge-lv2`.
 
 ## Ohne Root-Rechte
 
@@ -29,3 +29,5 @@ Für **De-Click** und **Spectral Noise Reduction** stelle bei gestopptem Transpo
 Spiele einen Abschnitt ab und klicke im Tab **Analyze Voice** auf **Analyze Voice**. Nach bis zu acht Sekunden erscheint eine Auswertung. **Stop analysis** wertet einen kürzeren Abschnitt aus. **Apply recommendations** übernimmt die Änderungen. **Compare** wechselt danach zwischen den ursprünglichen und den vorgeschlagenen Werten. **Reset** leert die Analyse.
 
 Die Buttons **A**, **B** und **Copy** vergleichen und kopieren Parametersätze. Verwende beim Vergleich denselben Live-/Studio-Modus, wenn der Latenzausgleich unverändert bleiben soll. Eigene Presets lassen sich im Menü speichern, umbenennen und löschen.
+
+**A/B differences** zeigt die Werte aller Regler, die sich zwischen A und B unterscheiden. **Invert Input Polarity** und **Remove DC Offset** befinden sich in **Voice processing → Input / EQ**. Die experimentelle Hallreduktion steht unter **Restoration → Dereverb** im Studio-Modus zur Verfügung.

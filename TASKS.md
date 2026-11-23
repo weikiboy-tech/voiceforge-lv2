@@ -13,5 +13,9 @@
 - [x] Level Rider, Momentary/Short-Term/Integrated LUFS, True Peak und begrenzte Sprachanalyse mit bestätigten Empfehlungen implementieren.
 - [x] Eigene LV2-UI, Werkspresets, lokale Benutzerpresets und persistentes A/B implementieren.
 - [x] Beide Varianten im Debian-Ardour-Audiokern einfügen und gespeicherte Parameter erneut laden.
-- [ ] Tatsächliches Audio-Interface, Live-Aufnahme und Hörbewertung am Zielrechner prüfen.
-- [ ] Dereverb prüfen, sobald ein Verfahren die Hörbewertung mit realen Raumaufnahmen besteht.
+- [x] Polarität und DC-Offset-Regler ergänzen und ältere Portindizes erhalten.
+- [x] A/B-Differenzansicht und experimentelle Hallabsenkung mit Signaltest integrieren.
+- [x] Neuinstallation unter Debian 12 amd64 und arm64 wiederholt prüfen.
+- [x] Beide eingebetteten Plugin-Fenster, Aufnahme und Offline-Export in Ardour auf Debian amd64 mit virtuellem Audio prüfen.
+- [ ] Tatsächliches Audio-Interface und Hörbewertung am Zielrechner prüfen.
+- [ ] Experimentellen Dereverb mit realen Raumaufnahmen bewerten.

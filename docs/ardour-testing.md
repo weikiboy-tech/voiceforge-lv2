@@ -1,6 +1,6 @@
 # Ardour-Testprotokoll
 
-Automatisiert geprüft in Debian 12 amd64 mit Ardour 7.3, virtuellem Audiogerät und 48 kHz. Beide Plugin-Varianten, Werkspreset und Session-Wiederherstellung bestanden. Ardours Desktop öffnete dieselbe Session. Die eigene UI wurde zusätzlich separat eingebettet und bedient. Pro Lauf am Zielgerät Debian-Version, Architektur, Ardour-Version, Paketname, Sample-Rate, Blockgröße und JACK- oder PipeWire-Konfiguration protokollieren. [Debian-Prüflauf](https://github.com/weikiboy-tech/voiceforge-lv2/actions/runs/45244280539)
+Automatisiert geprüft in Debian 12 mit Ardour 7.3, virtuellem Audiogerät und 48 kHz. Beide Plugin-Varianten, Werkspreset und Session-Wiederherstellung bestanden auf amd64 und arm64. Der amd64-Desktop-Test öffnete und schloss beide eingebetteten Plugin-Fenster, nahm ein Testsignal auf und verglich den Offline-Export in Live und Studio. Pro Lauf am Zielgerät Debian-Version, Architektur, Ardour-Version, Paketname, Sample-Rate, Blockgröße und JACK- oder PipeWire-Konfiguration protokollieren. [Debian-Prüflauf](https://github.com/weikiboy-tech/voiceforge-lv2/actions/runs/45246651264)
 
 1. Paket installieren, Ardour öffnen und den Plugin-Scan ausführen. Beide Varianten im Plugin-Manager suchen.
 2. Eine Mono- und eine Stereospur mit bekannten Signalen anlegen. Jeweils die passende Instanz laden und jeden Kanal mit einem eigenen Signal prüfen.
