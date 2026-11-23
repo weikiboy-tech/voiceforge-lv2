@@ -1,0 +1,12 @@
+@prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+<https://weikiboy-tech.github.io/voiceforge-lv2/mono>
+    a lv2:Plugin ;
+    lv2:binary <voiceforge.so> ;
+    rdfs:seeAlso <voiceforge-mono.ttl> .
+
+<https://weikiboy-tech.github.io/voiceforge-lv2/stereo>
+    a lv2:Plugin ;
+    lv2:binary <voiceforge.so> ;
+    rdfs:seeAlso <voiceforge-stereo.ttl> .

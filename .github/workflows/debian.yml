@@ -1,0 +1,43 @@
+name: Debian LV2 preview
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  bookworm:
+    runs-on: ubuntu-24.04
+    container: debian:bookworm
+    steps:
+      - name: Prepare Debian build environment
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends binutils ca-certificates cmake dpkg-dev g++ git liblilv-dev lilv-utils lv2-dev ninja-build pkg-config serdi sord
+          dpkg-query -W g++ cmake dpkg-dev liblilv-dev lv2-dev
+      - uses: actions/checkout@v4
+      - name: Build and test
+        run: sh scripts/build.sh
+      - name: Package and test installation
+        run: |
+          sh scripts/package.sh
+          dpkg -i dist/*.deb
+          dpkg -s voiceforge-lv2
+          build-linux/voiceforge_host_test /usr/lib/lv2
+          stage=$(mktemp -d)
+          export HOME="$stage/home"
+          mkdir "$HOME"
+          tar xzf dist/voiceforge-lv2-linux-amd64.tar.gz -C "$stage"
+          sh "$stage/install.sh"
+          sh "$stage/install.sh"
+          build-linux/voiceforge_host_test "$HOME/.lv2"
+          sh "$stage/uninstall.sh"
+          test ! -e "$HOME/.lv2/voiceforge.lv2"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: voiceforge-lv2-debian-bookworm-amd64-preview
+          path: |
+            dist/*.deb
+            dist/*.tar.gz
+            build-linux/runtime-dependencies.txt
+          if-no-files-found: error
