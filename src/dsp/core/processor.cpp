@@ -24,7 +24,7 @@ Processor::Processor(double sampleRate, unsigned channels)
       channels_(std::clamp(channels, 1u, 2u)),
       smoothing_(-std::expm1(-1.0 / (0.005 * sampleRate_))),
       restoration_(std::make_unique<Restoration>(sampleRate_)),
-      limiter_(sampleRate_) {}
+      limiter_(sampleRate_), loudness_(sampleRate_), analysis_(sampleRate_), spectrum_(sampleRate_) {}
 
 void Processor::reset() noexcept {
     filters_ = {};
@@ -34,6 +34,13 @@ void Processor::reset() noexcept {
     expander_ = {};
     deEsser_ = {};
     limiter_.reset();
+    rider_ = {};
+    loudness_.reset();
+    analysis_.clear();
+    spectrum_.reset();
+    analysis_.command(false, false);
+    measurements_ = {};
+    meterReset_ = false;
     limiterReduction_ = compressorReduction_ = deEsserReduction_ = 0.0f;
     primed_ = false;
 }
@@ -65,6 +72,13 @@ void Processor::process(const std::array<const float*, 2>& inputs,
     expander_.prepare(controls.expander, sampleRate_, !primed_);
     deEsser_.prepare(controls.deEsser, sampleRate_, !primed_);
     restoration_->prepare(controls.restoration, !primed_);
+    rider_.prepare(controls.rider, sampleRate_, !primed_);
+    if (controls.resetMeter && !meterReset_) {
+        loudness_.reset();
+        measurements_ = {};
+    }
+    meterReset_ = controls.resetMeter;
+    analysis_.command(controls.analyze, controls.resetAnalysis);
     if (!primed_) {
         inputGain_ = inputTarget;
         outputGain_ = outputTarget;
@@ -79,6 +93,7 @@ void Processor::process(const std::array<const float*, 2>& inputs,
     double minimumGain = 1.0;
     double compressorGain = 1.0;
     double deEsserGain = 1.0;
+    double peakIn = 0.0, peakOut = 0.0, inputPower = 0.0;
     for (std::uint32_t frame = 0; frame < frames; ++frame) {
         inputGain_ = approach(inputGain_, inputTarget, smoothing_);
         outputGain_ = approach(outputGain_, outputTarget, smoothing_);
@@ -90,9 +105,14 @@ void Processor::process(const std::array<const float*, 2>& inputs,
         std::array<double, 2> dry{}, wet{};
         for (unsigned ch = 0; ch < channels_; ++ch) {
             dry[ch] = inputs[ch] ? safeSample(inputs[ch][frame]) : 0.0f;
+            peakIn = std::max(peakIn, std::abs(dry[ch]));
+            inputPower += dry[ch] * dry[ch];
             wet[ch] = dry[ch] * inputGain_;
         }
 
+        analysis_.process(dry, channels_, voiceActive());
+        if (controls.spectrum)
+            spectrum_.process(dry, channels_);
         restoration_->process(dry, wet, channels_, smoothing_);
         for (unsigned ch = 0; ch < channels_; ++ch) {
             const float gained = safeSample(wet[ch]);
@@ -102,6 +122,7 @@ void Processor::process(const std::array<const float*, 2>& inputs,
         expander_.process(wet, channels_, smoothing_);
         equalizer_.process(wet, channels_, smoothing_);
         const double ess = deEsser_.process(wet, channels_, smoothing_);
+        rider_.process(wet, channels_, smoothing_, voiceActive());
         const double comp = compressor_.process(wet, channels_, smoothing_);
         deEsserGain = std::min(deEsserGain, std::lerp(1.0, ess, wet_));
         compressorGain = std::min(compressorGain, std::lerp(1.0, comp, wet_));
@@ -109,15 +130,29 @@ void Processor::process(const std::array<const float*, 2>& inputs,
             wet[ch] *= outputGain_;
         const double gain = std::lerp(1.0, limiter_.process(peakOf(wet, channels_), limiterCeiling_), limiterMix_);
         minimumGain = std::min(minimumGain, std::lerp(1.0, gain, wet_));
+        std::array<float, 2> final{};
         for (unsigned ch = 0; ch < channels_; ++ch) {
+            final[ch] = std::lerp(safeSample(dry[ch]), safeSample(wet[ch] * gain),
+                                  static_cast<float>(wet_));
+            peakOut = std::max(peakOut, std::abs(static_cast<double>(final[ch])));
             if (outputs[ch])
-                outputs[ch][frame] = std::lerp(safeSample(dry[ch]), safeSample(wet[ch] * gain),
-                                               static_cast<float>(wet_));
+                outputs[ch][frame] = final[ch];
         }
+        loudness_.process(final, channels_);
     }
     limiterReduction_ = static_cast<float>(-20.0 * std::log10(minimumGain));
     compressorReduction_ = static_cast<float>(-decibels(compressorGain));
     deEsserReduction_ = static_cast<float>(-decibels(deEsserGain));
+    measurements_.inputPeak = static_cast<float>(std::max(-120.0, decibels(peakIn)));
+    measurements_.inputRms = static_cast<float>(std::max(-120.0,
+        decibels(std::sqrt(inputPower / (static_cast<double>(frames) * channels_)))));
+    measurements_.outputPeak = static_cast<float>(std::max(-120.0, decibels(peakOut)));
+    measurements_.truePeak = loudness_.truePeak();
+    measurements_.momentary = loudness_.momentary();
+    measurements_.shortTerm = loudness_.shortTerm();
+    measurements_.integrated = loudness_.integrated();
+    measurements_.inputClip = measurements_.inputClip || peakIn >= 1.0;
+    measurements_.outputClip = measurements_.outputClip || peakOut >= 1.0 || measurements_.truePeak >= 0.0f;
 }
 
 } // namespace voiceforge

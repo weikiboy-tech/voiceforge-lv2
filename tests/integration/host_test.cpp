@@ -57,7 +57,7 @@ void test(LilvWorld* world, const char* uri, unsigned channels) {
     std::unique_ptr<LilvNode, decltype(&lilv_node_free)> id(lilv_new_uri(world, uri), lilv_node_free);
     const auto* plugin = lilv_plugins_get_by_uri(lilv_world_get_all_plugins(world), id.get());
     require(plugin && lilv_plugin_verify(plugin), "discover valid plugin with Lilv");
-    require(lilv_plugin_get_num_ports(plugin) == 2 * channels + 75, "metadata port count");
+    require(lilv_plugin_get_num_ports(plugin) == 2 * channels + 122, "metadata port count");
     require(lilv_plugin_has_latency(plugin) &&
             lilv_plugin_get_latency_port_index(plugin) == 2 * channels + 3, "latency designation");
 

@@ -5,7 +5,8 @@ fail() { printf 'VoiceForge: %s\n' "$*" >&2; exit 1; }
 here=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 source=${1:-"$here/voiceforge.lv2"}
 [ "$(uname -s)" = Linux ] || fail 'Der Installer erfordert Linux.'
-for file in VERSION manifest.ttl voiceforge-mono.ttl voiceforge-stereo.ttl voiceforge.so; do
+files='VERSION manifest.ttl voiceforge-mono.ttl voiceforge-stereo.ttl voiceforge.so voiceforge-ui.ttl voiceforge_ui.so presets.ttl'
+for file in $files; do
     [ -f "$source/$file" ] || fail "Datei fehlt im Bundle: $file"
 done
 version=$(cat "$source/VERSION")
@@ -51,7 +52,7 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
 mkdir -- "$work/next"
-for file in VERSION manifest.ttl voiceforge-mono.ttl voiceforge-stereo.ttl voiceforge.so; do
+for file in $files; do
     install -m 644 -- "$source/$file" "$work/next/$file"
 done
 if [ -d "$target" ]; then

@@ -13,7 +13,7 @@ jobs:
       - name: Prepare Debian build environment
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends binutils ca-certificates cmake dpkg-dev file g++ git liblilv-dev lilv-utils lv2-dev ninja-build pkg-config python3 serdi sordi
+          apt-get install -y --no-install-recommends binutils ca-certificates cmake dpkg-dev file g++ git libcairo2-dev liblilv-dev libx11-dev lilv-utils lv2-dev ninja-build pkg-config python3 serdi sordi
           dpkg-query -W g++ cmake dpkg-dev liblilv-dev lv2-dev
       - uses: actions/checkout@v4
       - name: Build and test

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(voiceforge VERSION 0.3.0 LANGUAGES CXX)
+project(voiceforge VERSION 0.4.0 LANGUAGES CXX)
 set(voiceforge_package_version "${PROJECT_VERSION}~preview1")
 
 include(CTest)
@@ -22,6 +22,7 @@ endif()
 add_library(voiceforge_dsp STATIC
     src/dsp/core/processor.cpp
     src/dsp/dynamics/voice_dynamics.cpp
+    src/dsp/mastering/loudness.cpp
     src/dsp/restoration/noise_reduction.cpp)
 target_compile_features(voiceforge_dsp PUBLIC cxx_std_20)
 target_include_directories(voiceforge_dsp PUBLIC src)
@@ -38,6 +39,9 @@ if(BUILD_TESTING)
     add_executable(voiceforge_restoration_test tests/unit/restoration_test.cpp)
     target_link_libraries(voiceforge_restoration_test PRIVATE voiceforge_dsp)
     add_test(NAME dsp_restoration COMMAND voiceforge_restoration_test)
+    add_executable(voiceforge_mastering_test tests/unit/mastering_test.cpp)
+    target_link_libraries(voiceforge_mastering_test PRIVATE voiceforge_dsp)
+    add_test(NAME dsp_mastering COMMAND voiceforge_mastering_test)
 endif()
 
 if(VOICEFORGE_LV2)
@@ -46,16 +50,27 @@ if(VOICEFORGE_LV2)
     endif()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LV2 REQUIRED IMPORTED_TARGET lv2>=1.18)
+    pkg_check_modules(UI REQUIRED IMPORTED_TARGET cairo-xlib x11)
+    find_package(Python3 3.9 REQUIRED COMPONENTS Interpreter)
     set(bundle_parent "${CMAKE_CURRENT_BINARY_DIR}/lv2")
     set(bundle "${bundle_parent}/voiceforge.lv2")
     file(MAKE_DIRECTORY "${bundle}")
-    foreach(metadata manifest.ttl voiceforge-mono.ttl voiceforge-stereo.ttl)
-        configure_file("lv2/${metadata}" "${bundle}/${metadata}" COPYONLY)
-    endforeach()
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+        lv2/manifest.ttl lv2/voiceforge-mono.ttl lv2/voiceforge-stereo.ttl
+        presets/factory.json scripts/generate_ui.py)
+    execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/generate_ui.py"
+        "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/voiceforge_ui_data.hpp" "${bundle}"
+        COMMAND_ERROR_IS_FATAL ANY)
     file(WRITE "${bundle}/VERSION" "${voiceforge_package_version}\n")
     add_library(voiceforge MODULE src/plugin/lv2.cpp)
     target_link_libraries(voiceforge PRIVATE voiceforge_dsp PkgConfig::LV2)
     set_target_properties(voiceforge PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY "${bundle}"
+        CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
+    add_library(voiceforge_ui MODULE src/ui/panel.cpp)
+    target_compile_features(voiceforge_ui PRIVATE cxx_std_20)
+    target_link_libraries(voiceforge_ui PRIVATE PkgConfig::LV2 PkgConfig::UI)
+    target_include_directories(voiceforge_ui PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}")
+    set_target_properties(voiceforge_ui PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY "${bundle}"
         CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
 
     if(BUILD_TESTING)
@@ -69,9 +84,10 @@ if(VOICEFORGE_LV2)
         endif()
     endif()
 
-    install(TARGETS voiceforge LIBRARY DESTINATION lib/lv2/voiceforge.lv2)
+    install(TARGETS voiceforge voiceforge_ui LIBRARY DESTINATION lib/lv2/voiceforge.lv2)
     install(FILES "${bundle}/manifest.ttl" "${bundle}/voiceforge-mono.ttl"
-        "${bundle}/voiceforge-stereo.ttl" "${bundle}/VERSION"
+        "${bundle}/voiceforge-stereo.ttl" "${bundle}/voiceforge-ui.ttl" "${bundle}/presets.ttl"
+        "${bundle}/VERSION"
         DESTINATION lib/lv2/voiceforge.lv2)
     install(FILES LICENSE DESTINATION share/doc/voiceforge-lv2 RENAME copyright)
     set(CPACK_GENERATOR DEB)

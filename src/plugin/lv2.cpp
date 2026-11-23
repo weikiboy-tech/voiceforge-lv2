@@ -22,15 +22,22 @@ enum Control : unsigned {
     deReduction, mode, clickEnabled, clickSensitivity, clickStrength, clickDuration,
     plosiveEnabled, plosiveSensitivity, plosiveFrequency, plosiveReduction, plosiveRecovery,
     noiseEnabled, noiseReduction, noiseThreshold, noiseSensitivity, noiseSmoothing,
-    noiseSpeechProtection, noiseArtifactControl, vadSensitivity, voiceActive, controlCount
+    noiseSpeechProtection, noiseArtifactControl, vadSensitivity, voiceActive,
+    riderOn, riderTarget, riderSpeed, riderMaxGain, riderMaxReduction, riderVoice, riderGain,
+    meterReset, inPeak, inRms, outPeak, truePeak, lufsM, lufsS, lufsI, inClip, outClip,
+    analyze, analysisReset, analysisProgress, analysisPeak, analysisRms, analysisFloor,
+    analysisRange, analysisSpeech, analysisLow, analysisHigh, analysisSibilance,
+    analysisClip, analysisLoudness, recommendHpf, recommendComp, recommendEss, recommendNoise,
+    sampleRate, spectrumStart, controlCount = spectrumStart + voiceforge::Spectrum::frequencies.size()
 };
 
 struct Instance {
     Instance(double rate, unsigned channelCount)
-        : processor(rate, channelCount), channels(channelCount) {}
+        : processor(rate, channelCount), channels(channelCount), rate(rate) {}
 
     voiceforge::Processor processor;
     unsigned channels;
+    double rate;
     std::array<const float*, 2> inputs{};
     std::array<float*, 2> outputs{};
     std::array<float*, controlCount> controls{};
@@ -115,12 +122,51 @@ void run(LV2_Handle handle, uint32_t frames) {
              value(noiseSmoothing, noise.smoothing), value(noiseSpeechProtection, noise.speechProtection),
              value(noiseArtifactControl, noise.artifactControl)};
     restoration.vadSensitivity = value(vadSensitivity, restoration.vadSensitivity);
+    auto& rider = settings.rider;
+    rider = {value(riderOn, 0.0f) >= 0.5f, value(riderTarget, rider.targetDb),
+             value(riderSpeed, rider.speedMs), value(riderMaxGain, rider.maximumGainDb),
+             value(riderMaxReduction, rider.maximumReductionDb), value(riderVoice, rider.voiceInfluence)};
+    settings.resetMeter = value(meterReset, 0.0f) >= 0.5f;
+    settings.analyze = value(analyze, 0.0f) >= 0.5f;
+    settings.resetAnalysis = value(analysisReset, 0.0f) >= 0.5f;
+    settings.spectrum = ports[spectrumStart] != nullptr;
     instance.processor.process(instance.inputs, instance.outputs, frames, settings);
     write(latency, static_cast<float>(instance.processor.latency(restoration.studio)));
     write(limiterReduction, instance.processor.limiterReduction());
     write(compReduction, instance.processor.compressorReduction());
     write(deReduction, instance.processor.deEsserReduction());
     write(voiceActive, instance.processor.voiceActive() ? 1.0f : 0.0f);
+    write(riderGain, instance.processor.riderGain());
+    const auto& meter = instance.processor.measurements();
+    write(inPeak, meter.inputPeak);
+    write(inRms, meter.inputRms);
+    write(outPeak, meter.outputPeak);
+    write(truePeak, meter.truePeak);
+    write(lufsM, meter.momentary);
+    write(lufsS, meter.shortTerm);
+    write(lufsI, meter.integrated);
+    write(inClip, meter.inputClip ? 1.0f : 0.0f);
+    write(outClip, meter.outputClip ? 1.0f : 0.0f);
+    const auto& report = instance.processor.analysis();
+    write(analysisProgress, report.progress);
+    write(analysisPeak, report.peak);
+    write(analysisRms, report.rms);
+    write(analysisFloor, report.floor);
+    write(analysisRange, report.range);
+    write(analysisSpeech, report.speech);
+    write(analysisLow, report.low);
+    write(analysisHigh, report.high);
+    write(analysisSibilance, report.sibilance);
+    write(analysisClip, report.clipped ? 1.0f : 0.0f);
+    write(analysisLoudness, report.loudness);
+    write(recommendHpf, report.highPass);
+    write(recommendComp, report.compressor);
+    write(recommendEss, report.deEsser);
+    write(recommendNoise, report.noise);
+    write(sampleRate, static_cast<float>(instance.rate));
+    if (settings.spectrum)
+        for (unsigned i = 0; i < voiceforge::Spectrum::frequencies.size(); ++i)
+            write(static_cast<Control>(spectrumStart + i), instance.processor.spectrumLevel(i));
 }
 
 void cleanup(LV2_Handle handle) { delete static_cast<Instance*>(handle); }

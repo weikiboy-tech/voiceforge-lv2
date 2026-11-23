@@ -1,7 +1,11 @@
 #pragma once
 
+#include "dsp/analysis/spectrum.hpp"
+#include "dsp/analysis/voice_analysis.hpp"
+#include "dsp/dynamics/level_rider.hpp"
 #include "dsp/dynamics/voice_dynamics.hpp"
 #include "dsp/filters/equalizer.hpp"
+#include "dsp/mastering/loudness.hpp"
 #include "dsp/mastering/peak_limiter.hpp"
 #include "dsp/restoration/restoration.hpp"
 
@@ -23,6 +27,9 @@ struct Controls {
     ExpanderSettings expander;
     DeEsserSettings deEsser;
     RestorationSettings restoration;
+    RiderSettings rider;
+    bool resetMeter = false, analyze = false, resetAnalysis = false;
+    bool spectrum = false;
 };
 
 class Processor {
@@ -37,6 +44,10 @@ public:
     float deEsserReduction() const noexcept { return deEsserReduction_; }
     unsigned latency(bool studio) const noexcept { return studio ? restoration_->delay() : 0; }
     bool voiceActive() const noexcept { return restoration_->voiceActive(); }
+    const Measurements& measurements() const noexcept { return measurements_; }
+    const VoiceReport& analysis() const noexcept { return analysis_.report(); }
+    float riderGain() const noexcept { return rider_.appliedDb(); }
+    float spectrumLevel(unsigned band) const noexcept { return spectrum_.level(band); }
 
 private:
     struct Filter {
@@ -58,10 +69,16 @@ private:
     std::array<Filter, 2> filters_{};
     std::unique_ptr<Restoration> restoration_;
     Equalizer equalizer_;
+    LevelRider rider_;
     Compressor compressor_;
     Expander expander_;
     DeEsser deEsser_;
     PeakLimiter limiter_;
+    Loudness loudness_;
+    VoiceAnalysis analysis_;
+    Spectrum spectrum_;
+    Measurements measurements_;
+    bool meterReset_ = false;
     float limiterReduction_ = 0.0f;
     float compressorReduction_ = 0.0f;
     float deEsserReduction_ = 0.0f;

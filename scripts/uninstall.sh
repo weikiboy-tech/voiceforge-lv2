@@ -12,6 +12,7 @@ if [ -L "$target" ] || [ ! -f "$target/VERSION" ] || [ ! -f "$target/manifest.tt
     exit 1
 fi
 rm -f -- "$target/VERSION" "$target/manifest.ttl" "$target/voiceforge-mono.ttl" \
-    "$target/voiceforge-stereo.ttl" "$target/voiceforge.so"
+    "$target/voiceforge-stereo.ttl" "$target/voiceforge.so" "$target/voiceforge-ui.ttl" \
+    "$target/voiceforge_ui.so" "$target/presets.ttl"
 rmdir -- "$target"
 printf 'VoiceForge wurde deinstalliert.\n'

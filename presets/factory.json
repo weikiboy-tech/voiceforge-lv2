@@ -1,0 +1,83 @@
+{
+  "Natural Voice": {
+    "high_pass": 65,
+    "comp_enabled": 1,
+    "comp_threshold": -24,
+    "comp_ratio": 2,
+    "limiter_enabled": 1
+  },
+  "Podcast Clean": {
+    "mode": 1,
+    "de_click_enabled": 1,
+    "noise_enabled": 1,
+    "noise_reduction": 8,
+    "de_plosive_enabled": 1,
+    "high_pass": 75,
+    "comp_enabled": 1,
+    "rider_enabled": 1,
+    "limiter_enabled": 1
+  },
+  "Audiobook Narration": {
+    "high_pass": 65,
+    "rider_enabled": 1,
+    "rider_speed": 1100,
+    "rider_target": -23,
+    "comp_enabled": 1,
+    "comp_ratio": 2,
+    "limiter_enabled": 1
+  },
+  "Deep Voice": {
+    "high_pass": 55,
+    "low_shelf_enabled": 1,
+    "low_shelf_gain": 1.8,
+    "eq_2_enabled": 1,
+    "eq_2_gain": -2,
+    "comp_enabled": 1,
+    "comp_ratio": 2.4,
+    "limiter_enabled": 1
+  },
+  "Bright Voice": {
+    "high_pass": 75,
+    "eq_4_enabled": 1,
+    "eq_4_gain": 1.5,
+    "de_esser_enabled": 1,
+    "de_esser_threshold": -22,
+    "limiter_enabled": 1
+  },
+  "Vocal Clean": {
+    "high_pass": 85,
+    "de_plosive_enabled": 1,
+    "de_esser_enabled": 1,
+    "comp_enabled": 1,
+    "comp_mix": 0.7,
+    "limiter_enabled": 1
+  },
+  "Noise Reduction Light": {
+    "mode": 1,
+    "noise_enabled": 1,
+    "noise_reduction": 7,
+    "noise_speech_protection": 0.8
+  },
+  "Noise Reduction Strong": {
+    "mode": 1,
+    "noise_enabled": 1,
+    "noise_reduction": 18,
+    "noise_smoothing": 0.72,
+    "noise_speech_protection": 0.7
+  },
+  "Broadcast Voice": {
+    "high_pass": 80,
+    "rider_enabled": 1,
+    "rider_target": -18,
+    "comp_enabled": 1,
+    "comp_ratio": 4,
+    "comp_threshold": -26,
+    "comp_makeup": 2,
+    "de_esser_enabled": 1,
+    "limiter_enabled": 1
+  },
+  "Transparent Master": {
+    "limiter_enabled": 1,
+    "limiter_ceiling": -1.5
+  }
+}
