@@ -8,5 +8,5 @@ Status **offen**. Pro Lauf Debian-Version, Architektur, Ardour-Version, Paketnam
 4. Gain automatisieren und Bypass bei laufender Wiedergabe umschalten. Übergänge auf Klicks abhören.
 5. Die Session speichern, Ardour schließen und die Session neu öffnen. Ports und Automation mit den vorherigen Werten vergleichen.
 6. Eine Live-Aufnahme prüfen und dieselbe Passage offline exportieren. Bei identischen Einstellungen Pegel und Kanalzuordnung vergleichen.
-7. Einen Impuls auf eine bearbeitete und eine trockene Spur legen. Gemeldete Latenz und Position der exportierten Impulse vergleichen.
+7. Einen Impuls auf eine bearbeitete und eine trockene Spur legen. Live muss null zusätzliche Samples melden. Studio bei gestopptem Transport wählen und die Position der exportierten Impulse mit Latenzausgleich vergleichen. Bypass im Studio-Modus muss zeitlich ausgerichtet bleiben. Zusätzlich die Sprachaktivitätsanzeige und die Restaurationsmodule mit einer bekannten Aufnahme prüfen.
 8. Preset-Auswahl, eigene Presets, A/B, Analyse und eigene GUI prüfen, sobald diese Funktionen implementiert sind.

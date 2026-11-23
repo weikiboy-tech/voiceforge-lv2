@@ -50,7 +50,8 @@ public:
             const double raw = result[ch];
             const double jump = raw - state.previous;
             const double limit = std::max(minimumJump_, transientRatio_ * state.gradient);
-            if (strength_ != 0.0 && state.remaining == 0 && std::abs(jump) > limit)
+            const bool abrupt = std::abs(jump - state.previousSlope) > 0.68 * std::abs(jump);
+            if (strength_ != 0.0 && state.remaining == 0 && std::abs(jump) > limit && abrupt)
                 findEnd(state, start, ch, jump, limit);
             if (state.remaining != 0) {
                 state.interpolated += state.increment;
@@ -58,7 +59,8 @@ public:
                 result[ch] = std::lerp(raw, state.interpolated, strength_);
             }
             const double repaired = state.remaining != 0 || result[ch] != raw ? state.interpolated : raw;
-            const double change = std::abs(repaired - state.previous);
+            state.previousSlope = repaired - state.previous;
+            const double change = std::abs(state.previousSlope);
             state.gradient += tracking_ * (std::min(change, 0.03 + 4.0 * state.gradient) - state.gradient);
             state.previous = repaired;
         }
@@ -69,7 +71,8 @@ public:
 
 private:
     struct State {
-        double gradient = 0.002, previous = 0.0, interpolated = 0.0, increment = 0.0;
+        double gradient = 0.002, previous = 0.0, previousSlope = 0.0;
+        double interpolated = 0.0, increment = 0.0;
         unsigned remaining = 0;
     };
 
@@ -81,7 +84,9 @@ private:
             const double next = ring_[(start + length + 1) % ringSize][ch];
             const bool returns = std::abs(right - state.previous) <= tolerance + length * state.gradient;
             const bool settles = std::abs(next - right) <= std::max(tolerance, 0.5 * limit);
-            if (returns && settles && std::abs(right - interior) >= 0.53 * limit) {
+            const double step = right - interior;
+            const bool abrupt = std::abs(step - (next - right)) > 0.65 * std::abs(step);
+            if (returns && settles && abrupt && std::abs(step) >= 0.53 * limit) {
                 state.interpolated = state.previous;
                 state.increment = (right - state.previous) / (length + 1);
                 state.remaining = length;

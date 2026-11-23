@@ -76,7 +76,12 @@ void clickTest() {
     click.prepare(settings, rate, true, true);
 
     for (unsigned i = 0; i < 2000; ++i) {
-        const auto clean = [](unsigned n) { return 0.065 * tone(180.0, n) + (n >= 1500 ? 0.3 : 0.0); };
+        const auto clean = [](unsigned n) {
+            const double speech = n >= 1000 && n < 1400
+                ? 0.20 * tone(2400.0, n) * std::min(1.0, std::min(n - 1000, 1400 - n) / 45.0)
+                : 0.0;
+            return 0.065 * tone(180.0, n) + speech + (n >= 1500 ? 0.3 : 0.0);
+        };
         const std::array<double, 4> clickWave{0.34, -0.22, 0.13, -0.07};
         const double error = i >= 800 && i < 804 ? clickWave[i - 800] : 0.0;
         const auto sample = click.process({clean(i) + error, clean(i)}, 2, stepForMs(5.0, rate));
