@@ -1,5 +1,10 @@
 # Änderungsverlauf
 
+## 0.2.0~preview2
+
+- LV2-Minor-Version für die neu hinzugekommenen optionalen Ports erhöht.
+- Offline-Regressionstest mit realer Sprachaufnahme und reproduzierbare Störsignale für Phase 3.
+
 ## 0.2.0~preview1
 
 - Low Shelf, vier parametrische EQ-Bänder und High Shelf zusätzlich zum Hochpass.

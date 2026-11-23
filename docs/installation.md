@@ -5,7 +5,7 @@ Lade das vorab getestete amd64-Artefakt unter **Artifacts** eines erfolgreichen 
 ## Debian-Paket
 
 ```sh
-sudo apt install ./voiceforge-lv2_0.2.0~preview1_amd64.deb
+sudo apt install ./voiceforge-lv2_0.2.0~preview2_amd64.deb
 ```
 
 Das Paket installiert unter `/usr/lib/lv2/voiceforge.lv2`. Entfernen lässt es sich mit `sudo apt remove voiceforge-lv2`.
