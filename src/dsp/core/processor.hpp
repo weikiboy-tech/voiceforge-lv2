@@ -3,9 +3,11 @@
 #include "dsp/dynamics/voice_dynamics.hpp"
 #include "dsp/filters/equalizer.hpp"
 #include "dsp/mastering/peak_limiter.hpp"
+#include "dsp/restoration/restoration.hpp"
 
 #include <array>
 #include <cstdint>
+#include <memory>
 
 namespace voiceforge {
 
@@ -20,11 +22,12 @@ struct Controls {
     CompressorSettings compressor;
     ExpanderSettings expander;
     DeEsserSettings deEsser;
+    RestorationSettings restoration;
 };
 
 class Processor {
 public:
-    Processor(double sampleRate, unsigned channels) noexcept;
+    Processor(double sampleRate, unsigned channels);
     void reset() noexcept;
     void process(const std::array<const float*, 2>& inputs,
                  const std::array<float*, 2>& outputs,
@@ -32,6 +35,8 @@ public:
     float limiterReduction() const noexcept { return limiterReduction_; }
     float compressorReduction() const noexcept { return compressorReduction_; }
     float deEsserReduction() const noexcept { return deEsserReduction_; }
+    unsigned latency(bool studio) const noexcept { return studio ? restoration_->delay() : 0; }
+    bool voiceActive() const noexcept { return restoration_->voiceActive(); }
 
 private:
     struct Filter {
@@ -51,6 +56,7 @@ private:
     double limiterMix_ = 0.0;
     double limiterCeiling_ = 1.0;
     std::array<Filter, 2> filters_{};
+    std::unique_ptr<Restoration> restoration_;
     Equalizer equalizer_;
     Compressor compressor_;
     Expander expander_;

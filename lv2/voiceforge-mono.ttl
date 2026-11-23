@@ -1,13 +1,15 @@
 @prefix doap: <http://usefulinc.com/ns/doap#> .
 @prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix units: <http://lv2plug.in/ns/extensions/units#> .
 
 <https://weikiboy-tech.github.io/voiceforge-lv2/mono>
     a lv2:Plugin ;
     doap:name "VoiceForge LV2 (Mono)" ;
     doap:license <https://spdx.org/licenses/MIT.html> ;
-    lv2:minorVersion 2 ;
-    lv2:microVersion 1 ;
+    lv2:minorVersion 3 ;
+    lv2:microVersion 0 ;
     lv2:port
         [ a lv2:InputPort, lv2:AudioPort ; lv2:index 0 ; lv2:symbol "in" ; lv2:name "Input" ],
         [ a lv2:OutputPort, lv2:AudioPort ; lv2:index 1 ; lv2:symbol "out" ; lv2:name "Output" ],
@@ -162,4 +164,62 @@
           lv2:default 1 ; lv2:minimum 0 ; lv2:maximum 1 ; lv2:portProperty lv2:connectionOptional ],
         [ a lv2:OutputPort, lv2:ControlPort ;
           lv2:index 57 ; lv2:symbol "de_esser_reduction" ; lv2:name "De-Esser Gain Reduction" ;
-          lv2:minimum 0 ; lv2:maximum 24 ; lv2:portProperty lv2:connectionOptional ; units:unit units:db ] .
+          lv2:minimum 0 ; lv2:maximum 24 ; lv2:portProperty lv2:connectionOptional ; units:unit units:db ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 58 ; lv2:symbol "mode" ; lv2:name "Processing Mode" ;
+          lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 1 ; lv2:portProperty lv2:connectionOptional, lv2:integer, lv2:enumeration ;
+          lv2:scalePoint [ rdfs:label "Live" ; rdf:value 0 ], [ rdfs:label "Studio" ; rdf:value 1 ] ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 59 ; lv2:symbol "de_click_enabled" ; lv2:name "De-Click" ;
+          lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 1 ; lv2:portProperty lv2:connectionOptional, lv2:toggled ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 60 ; lv2:symbol "de_click_sensitivity" ; lv2:name "De-Click Sensitivity" ;
+          lv2:default 0.55 ; lv2:minimum 0 ; lv2:maximum 1 ; lv2:portProperty lv2:connectionOptional ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 61 ; lv2:symbol "de_click_strength" ; lv2:name "De-Click Strength" ;
+          lv2:default 0.85 ; lv2:minimum 0 ; lv2:maximum 1 ; lv2:portProperty lv2:connectionOptional ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 62 ; lv2:symbol "de_click_duration" ; lv2:name "Maximum Click Duration" ;
+          lv2:default 0.25 ; lv2:minimum 0.05 ; lv2:maximum 0.65 ; lv2:portProperty lv2:connectionOptional ; units:unit units:ms ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 63 ; lv2:symbol "de_plosive_enabled" ; lv2:name "De-Plosive" ;
+          lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 1 ; lv2:portProperty lv2:connectionOptional, lv2:toggled ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 64 ; lv2:symbol "de_plosive_sensitivity" ; lv2:name "De-Plosive Sensitivity" ;
+          lv2:default 0.55 ; lv2:minimum 0 ; lv2:maximum 1 ; lv2:portProperty lv2:connectionOptional ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 65 ; lv2:symbol "de_plosive_frequency" ; lv2:name "De-Plosive Frequency" ;
+          lv2:default 135 ; lv2:minimum 50 ; lv2:maximum 220 ; lv2:portProperty lv2:connectionOptional ; units:unit units:hz ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 66 ; lv2:symbol "de_plosive_reduction" ; lv2:name "De-Plosive Reduction" ;
+          lv2:default 14 ; lv2:minimum 0 ; lv2:maximum 24 ; lv2:portProperty lv2:connectionOptional ; units:unit units:db ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 67 ; lv2:symbol "de_plosive_recovery" ; lv2:name "De-Plosive Recovery" ;
+          lv2:default 100 ; lv2:minimum 25 ; lv2:maximum 400 ; lv2:portProperty lv2:connectionOptional ; units:unit units:ms ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 68 ; lv2:symbol "noise_enabled" ; lv2:name "Spectral Noise Reduction" ;
+          lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 1 ; lv2:portProperty lv2:connectionOptional, lv2:toggled ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 69 ; lv2:symbol "noise_reduction" ; lv2:name "Noise Reduction Depth" ;
+          lv2:default 12 ; lv2:minimum 0 ; lv2:maximum 24 ; lv2:portProperty lv2:connectionOptional ; units:unit units:db ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 70 ; lv2:symbol "noise_threshold" ; lv2:name "Noise Learning Threshold" ;
+          lv2:default -32 ; lv2:minimum -72 ; lv2:maximum -18 ; lv2:portProperty lv2:connectionOptional ; units:unit units:db ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 71 ; lv2:symbol "noise_sensitivity" ; lv2:name "Noise Sensitivity" ;
+          lv2:default 0.55 ; lv2:minimum 0 ; lv2:maximum 1 ; lv2:portProperty lv2:connectionOptional ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 72 ; lv2:symbol "noise_smoothing" ; lv2:name "Noise Smoothing" ;
+          lv2:default 0.55 ; lv2:minimum 0 ; lv2:maximum 1 ; lv2:portProperty lv2:connectionOptional ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 73 ; lv2:symbol "noise_speech_protection" ; lv2:name "Noise Speech Protection" ;
+          lv2:default 0.65 ; lv2:minimum 0 ; lv2:maximum 1 ; lv2:portProperty lv2:connectionOptional ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 74 ; lv2:symbol "noise_artifact_control" ; lv2:name "Noise Artifact Control" ;
+          lv2:default 0.55 ; lv2:minimum 0 ; lv2:maximum 1 ; lv2:portProperty lv2:connectionOptional ],
+        [ a lv2:InputPort, lv2:ControlPort ;
+          lv2:index 75 ; lv2:symbol "vad_sensitivity" ; lv2:name "Voice Detection Sensitivity" ;
+          lv2:default 0.5 ; lv2:minimum 0 ; lv2:maximum 1 ; lv2:portProperty lv2:connectionOptional ],
+        [ a lv2:OutputPort, lv2:ControlPort ;
+          lv2:index 76 ; lv2:symbol "voice_active" ; lv2:name "Voice Activity" ;
+          lv2:minimum 0 ; lv2:maximum 1 ; lv2:portProperty lv2:connectionOptional, lv2:toggled ] .

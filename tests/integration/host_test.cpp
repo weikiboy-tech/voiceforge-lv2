@@ -57,7 +57,7 @@ void test(LilvWorld* world, const char* uri, unsigned channels) {
     std::unique_ptr<LilvNode, decltype(&lilv_node_free)> id(lilv_new_uri(world, uri), lilv_node_free);
     const auto* plugin = lilv_plugins_get_by_uri(lilv_world_get_all_plugins(world), id.get());
     require(plugin && lilv_plugin_verify(plugin), "discover valid plugin with Lilv");
-    require(lilv_plugin_get_num_ports(plugin) == 2 * channels + 56, "metadata port count");
+    require(lilv_plugin_get_num_ports(plugin) == 2 * channels + 75, "metadata port count");
     require(lilv_plugin_has_latency(plugin) &&
             lilv_plugin_get_latency_port_index(plugin) == 2 * channels + 3, "latency designation");
 
@@ -135,6 +135,26 @@ void test(LilvWorld* world, const char* uri, unsigned channels) {
     require(std::abs(out[0] - std::pow(10.0, -15.0 / 20.0)) < 1e-5 &&
             std::abs(compressorReduction - 15.0f) < 0.001f, "compressor control and reduction meter");
     require(deEsserReduction == 0.0f, "disabled de-esser reports no reduction");
+    lilv_instance_deactivate(instance.get());
+
+    float mode = 1.0f, active = -1.0f;
+    connect("mode", mode);
+    connect("voice_active", active);
+    compressorOn = 0.0f;
+    enabled = 0.0f;
+    in = {0.6f, -0.25f};
+    lilv_instance_activate(instance.get());
+    lilv_instance_run(instance.get(), 0);
+    require(latency == 1058.0f, "Studio latency available before first audio sample");
+    lilv_instance_run(instance.get(), 1);
+    require(out[0] == 0.0f && active == 0.0f, "Studio bypass delays dry audio, VAD starts idle");
+    in = {};
+    for (unsigned i = 1; i < 1058; ++i) {
+        lilv_instance_run(instance.get(), 1);
+        require(out[0] == 0.0f, "no audio before the Studio delay");
+    }
+    lilv_instance_run(instance.get(), 1);
+    require(out[0] == 0.6f && (channels == 1 || out[1] == -0.25f), "Studio dry delay matches report");
     lilv_instance_deactivate(instance.get());
 }
 } // namespace

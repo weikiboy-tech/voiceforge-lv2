@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
-project(voiceforge VERSION 0.2.0 LANGUAGES CXX)
-set(voiceforge_package_version "${PROJECT_VERSION}~preview2")
+project(voiceforge VERSION 0.3.0 LANGUAGES CXX)
+set(voiceforge_package_version "${PROJECT_VERSION}~preview1")
 
 include(CTest)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -21,7 +21,8 @@ endif()
 
 add_library(voiceforge_dsp STATIC
     src/dsp/core/processor.cpp
-    src/dsp/dynamics/voice_dynamics.cpp)
+    src/dsp/dynamics/voice_dynamics.cpp
+    src/dsp/restoration/noise_reduction.cpp)
 target_compile_features(voiceforge_dsp PUBLIC cxx_std_20)
 target_include_directories(voiceforge_dsp PUBLIC src)
 set_target_properties(voiceforge_dsp PROPERTIES POSITION_INDEPENDENT_CODE ON
@@ -34,6 +35,9 @@ if(BUILD_TESTING)
     add_executable(voiceforge_voice_test tests/unit/voice_test.cpp)
     target_link_libraries(voiceforge_voice_test PRIVATE voiceforge_dsp)
     add_test(NAME dsp_voice COMMAND voiceforge_voice_test)
+    add_executable(voiceforge_restoration_test tests/unit/restoration_test.cpp)
+    target_link_libraries(voiceforge_restoration_test PRIVATE voiceforge_dsp)
+    add_test(NAME dsp_restoration COMMAND voiceforge_restoration_test)
 endif()
 
 if(VOICEFORGE_LV2)

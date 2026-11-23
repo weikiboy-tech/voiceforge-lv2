@@ -1,6 +1,6 @@
 # VoiceForge LV2
 
-VoiceForge LV2 ist ein Offline-Sprachprozessor für Ardour unter Debian. Die Vorabversion 0.2.0 enthält Mono und Stereo, Input Gain und Output Gain, geglätteten Bypass, Hochpass, Sechsband-EQ, Expander, De-Esser, Kompressor und Sample-Peak-Limiter. Der Host stellt die Bedienelemente und Messports bereit. Die Audiokette meldet null Samples Verzögerung.
+VoiceForge LV2 ist ein Offline-Sprachprozessor für Ardour unter Debian. Die Vorabversion 0.3.0 enthält Mono und Stereo, Pegelregler, Hochpass, Sechsband-EQ, Expander, De-Esser, Kompressor und Sample-Peak-Limiter. Hinzu kommen De-Plosive, Sprachaktivitätsanzeige sowie De-Click und spektrale Rauschreduktion im Studio-Modus. Live meldet null zusätzliche Samples Verzögerung. Der Host stellt die Bedienelemente und Messports bereit.
 
 ## Installation und Verwendung
 
@@ -18,4 +18,4 @@ cmake --build build-win --config Release
 ctest --test-dir build-win -C Release --output-on-failure
 ```
 
-Die [Testdokumentation](docs/testing.md) nennt den Prüfstand. Ardour wurde noch nicht manuell geprüft. Spektrale Restauration, Analyse, eigene Oberfläche mit EQ-Kurve und Presets stehen auf der [Prüfliste](TASKS.md).
+Die [Testdokumentation](docs/testing.md) nennt den Prüfstand. Ardour wurde noch nicht manuell geprüft. Level Rider, Lautheitsanalyse, eigene Oberfläche mit EQ-Kurve und Presets stehen auf der [Prüfliste](TASKS.md).

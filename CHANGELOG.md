@@ -1,5 +1,11 @@
 # Änderungsverlauf
 
+## 0.3.0~preview1
+
+- De-Click mit lokalem Impulsdetektor und Interpolation. De-Plosive mit dynamischer Bassabsenkung.
+- Adaptive spektrale Rauschreduktion und klassische Spracherkennung mit Hysterese.
+- Live verarbeitet ohne zusätzliche Samples Verzögerung. Studio stellt De-Click und spektrale Rauschreduktion bereit und meldet die Verzögerung des Puffers an den Host.
+
 ## 0.2.0~preview2
 
 - LV2-Minor-Version für die neu hinzugekommenen optionalen Ports erhöht.

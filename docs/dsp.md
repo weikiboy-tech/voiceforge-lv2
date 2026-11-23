@@ -15,3 +15,12 @@ Neben dem Hochpass stehen zwei Shelves und vier Glockenfilter zur Verfügung. Je
 - Der Expander senkt Pegel unterhalb der Schwelle mit einem 6-dB-Soft-Knee ab. Die maximale Absenkung ist einstellbar. Attack bestimmt das Öffnen, Release das Schließen.
 - Der Kompressor verwendet die höhere Kanalamplitude zur Peak-Erkennung. Er bildet die Übersteuerung mit einer quadratischen Soft-Knee-Kurve auf Gain Reduction ab und glättet die Absenkung in dB. Das automatische Makeup schätzt den Verlust bei einem Referenzpegel von −12 dBFS und ist auf 12 dB begrenzt. Dry/Wet und manuelles Makeup sind unabhängig einstellbar. [Grundlagen zur Kompressorkennlinie und Ballistik](https://aes.org/publications/elibrary/elibrary-page/?id=16354)
 - Der De-Esser erkennt Pegel in einem abstimmbaren Bandpass. Er mischt bei Überschreitung der Schwelle bis zu 24 dB Absenkung im bearbeiteten Band ein. Der Reduktionsport zeigt den stärksten angewandten Wert des Blocks.
+
+## Restauration
+
+- De-Click sucht nach einem auffälligen lokalen Pegelsprung und einer zeitnahen Rückkehr zu stabilen Nachbarsamples. Bei Treffer werden die Samples linear zwischen den beiden Rändern interpoliert. Die Vorschau ist maximal 0,65 ms plus zwei Samples. Sensitivity, Strength und Maximum Click Duration sind einstellbar.
+- De-Plosive erkennt einen Anstieg der Bassenergie im Verhältnis zu Breitbandenergie und langsamem Basspegel. Die resultierende kurzzeitige Bassabsenkung ist stereo-gekoppelt.
+- Spracherkennung vergleicht breitbandige und auf das Sprachband begrenzte Quadratmittel über 10-ms-Fenster. Drei aufeinanderfolgende Treffer lösen Aktivität aus. Eine Haltezeit überbrückt kurze Sprachpausen. Der Wert hilft der spektralen Rauschprofilschätzung und wird als Kontrollport ausgegeben.
+- Studio-Rauschreduktion nutzt eine STFT mit vierfacher Überlappung, Quadratwurzel-Hann-Fenstern und einer gemeinsamen Mono-/Stereo-Maske. Der Rauschboden wird aus Nicht-Sprachfenstern unter dem Lernschwellwert aktualisiert. Eine Untergrenze, zeitliche Glättung, Glättung benachbarter Bins und Sprachschutz begrenzen Artefakte. [Spektrale Subtraktion](https://ieeexplore.ieee.org/abstract/document/1163209/) · [Fensterung und Overlap-Add](https://www.dsprelated.com/freebooks/sasp/Overlap_Add_OLA_STFT_Processing.html)
+
+Studio verzögert das Signal um die FFT-Größe plus die Klickvorschau. Bei 48 kHz sind das 1.058 Samples (22,04 ms), auch bei deaktivierten Studio-Modulen. Live hat keine zusätzliche Sample-Verzögerung.

@@ -19,14 +19,16 @@ float safeSample(double value) noexcept {
 
 } // namespace
 
-Processor::Processor(double sampleRate, unsigned channels) noexcept
-    : sampleRate_(std::isfinite(sampleRate) && sampleRate >= 8000.0 ? sampleRate : 48000.0),
+Processor::Processor(double sampleRate, unsigned channels)
+    : sampleRate_(bounded(sampleRate, 48000.0, 8000.0, 384000.0)),
       channels_(std::clamp(channels, 1u, 2u)),
       smoothing_(-std::expm1(-1.0 / (0.005 * sampleRate_))),
+      restoration_(std::make_unique<Restoration>(sampleRate_)),
       limiter_(sampleRate_) {}
 
 void Processor::reset() noexcept {
     filters_ = {};
+    restoration_->reset();
     equalizer_.reset();
     compressor_ = {};
     expander_ = {};
@@ -62,6 +64,7 @@ void Processor::process(const std::array<const float*, 2>& inputs,
     compressor_.prepare(controls.compressor, sampleRate_, !primed_);
     expander_.prepare(controls.expander, sampleRate_, !primed_);
     deEsser_.prepare(controls.deEsser, sampleRate_, !primed_);
+    restoration_->prepare(controls.restoration, !primed_);
     if (!primed_) {
         inputGain_ = inputTarget;
         outputGain_ = outputTarget;
@@ -84,13 +87,15 @@ void Processor::process(const std::array<const float*, 2>& inputs,
         highPassMix_ = approach(highPassMix_, highPassTarget, smoothing_);
         limiterMix_ = approach(limiterMix_, limiterTarget, smoothing_);
         limiterCeiling_ = approach(limiterCeiling_, ceilingTarget, smoothing_);
-        std::array<float, 2> dry{};
-        for (unsigned ch = 0; ch < channels_; ++ch)
-            dry[ch] = inputs[ch] ? safeSample(inputs[ch][frame]) : 0.0f;
-
-        std::array<double, 2> wet{};
+        std::array<double, 2> dry{}, wet{};
         for (unsigned ch = 0; ch < channels_; ++ch) {
-            const float gained = safeSample(static_cast<double>(dry[ch]) * inputGain_);
+            dry[ch] = inputs[ch] ? safeSample(inputs[ch][frame]) : 0.0f;
+            wet[ch] = dry[ch] * inputGain_;
+        }
+
+        restoration_->process(dry, wet, channels_, smoothing_);
+        for (unsigned ch = 0; ch < channels_; ++ch) {
+            const float gained = safeSample(wet[ch]);
             const float high = filters_[ch].process(gained, static_cast<float>(highPassCoefficient_));
             wet[ch] = std::lerp(gained, high, static_cast<float>(highPassMix_));
         }
@@ -106,7 +111,8 @@ void Processor::process(const std::array<const float*, 2>& inputs,
         minimumGain = std::min(minimumGain, std::lerp(1.0, gain, wet_));
         for (unsigned ch = 0; ch < channels_; ++ch) {
             if (outputs[ch])
-                outputs[ch][frame] = std::lerp(dry[ch], safeSample(wet[ch] * gain), static_cast<float>(wet_));
+                outputs[ch][frame] = std::lerp(safeSample(dry[ch]), safeSample(wet[ch] * gain),
+                                               static_cast<float>(wet_));
         }
     }
     limiterReduction_ = static_cast<float>(-20.0 * std::log10(minimumGain));

@@ -19,7 +19,10 @@ enum Control : unsigned {
     compMix, compAutoMakeup, compReduction,
     expEnabled, expThreshold, expRatio, expAttack, expRelease, expRange,
     deEnabled, deFrequency, deThreshold, deRatio, deAttack, deRelease, deMix,
-    deReduction, controlCount
+    deReduction, mode, clickEnabled, clickSensitivity, clickStrength, clickDuration,
+    plosiveEnabled, plosiveSensitivity, plosiveFrequency, plosiveReduction, plosiveRecovery,
+    noiseEnabled, noiseReduction, noiseThreshold, noiseSensitivity, noiseSmoothing,
+    noiseSpeechProtection, noiseArtifactControl, vadSensitivity, voiceActive, controlCount
 };
 
 struct Instance {
@@ -35,9 +38,13 @@ struct Instance {
 
 LV2_Handle instantiate(const LV2_Descriptor* descriptor, double rate, const char*,
                        const LV2_Feature* const*) {
-    if (!std::isfinite(rate) || rate < 8000.0)
+    if (!std::isfinite(rate) || rate < 8000.0 || rate > 384000.0)
         return nullptr;
-    return new (std::nothrow) Instance(rate, std::strcmp(descriptor->URI, stereoUri) == 0 ? 2u : 1u);
+    try {
+        return new Instance(rate, std::strcmp(descriptor->URI, stereoUri) == 0 ? 2u : 1u);
+    } catch (const std::bad_alloc&) {
+        return nullptr;
+    }
 }
 
 void connectPort(LV2_Handle handle, uint32_t port, void* data) {
@@ -93,11 +100,27 @@ void run(LV2_Handle handle, uint32_t frames) {
            value(deThreshold, ess.thresholdDb), value(deRatio, ess.ratio),
            value(deAttack, ess.attackMs), value(deRelease, ess.releaseMs),
            value(deMix, ess.mix)};
+    auto& restoration = settings.restoration;
+    restoration.studio = value(mode, 0.0f) >= 0.5f;
+    auto& click = restoration.click;
+    click = {value(clickEnabled, 0.0f) >= 0.5f, value(clickSensitivity, click.sensitivity),
+             value(clickStrength, click.strength), value(clickDuration, click.maximumMs)};
+    auto& plosive = restoration.plosive;
+    plosive = {value(plosiveEnabled, 0.0f) >= 0.5f, value(plosiveSensitivity, plosive.sensitivity),
+               value(plosiveFrequency, plosive.frequency), value(plosiveReduction, plosive.reductionDb),
+               value(plosiveRecovery, plosive.recoveryMs)};
+    auto& noise = restoration.noise;
+    noise = {value(noiseEnabled, 0.0f) >= 0.5f, value(noiseReduction, noise.reductionDb),
+             value(noiseThreshold, noise.thresholdDb), value(noiseSensitivity, noise.sensitivity),
+             value(noiseSmoothing, noise.smoothing), value(noiseSpeechProtection, noise.speechProtection),
+             value(noiseArtifactControl, noise.artifactControl)};
+    restoration.vadSensitivity = value(vadSensitivity, restoration.vadSensitivity);
     instance.processor.process(instance.inputs, instance.outputs, frames, settings);
-    write(latency, 0.0f);
+    write(latency, static_cast<float>(instance.processor.latency(restoration.studio)));
     write(limiterReduction, instance.processor.limiterReduction());
     write(compReduction, instance.processor.compressorReduction());
     write(deReduction, instance.processor.deEsserReduction());
+    write(voiceActive, instance.processor.voiceActive() ? 1.0f : 0.0f);
 }
 
 void cleanup(LV2_Handle handle) { delete static_cast<Instance*>(handle); }
