@@ -10,6 +10,8 @@
 - [x] Phase 3 mit einer CC0-Sprachaufnahme und reproduzierbaren Störsignalen vorbereiten.
 - [x] De-Click, De-Plosive und spektrale Rauschreduktion implementieren und anhand der Sprachaufnahme messen. VAD inklusive Stereo-Signaltests integrieren.
 - [x] Live-/Studio-Modus mit gemessener Latenz und trockenem Latenzausgleich integrieren.
-- [ ] Level Rider, Momentary/Short-Term/Integrated LUFS, True Peak und erweiterte Analyse umsetzen. Experimentellen Dereverb erst nach Hörbewertung freigeben.
-- [ ] GUI, A/B und Presets umsetzen.
-- [ ] Ardour-Zieltest und Klangbewertung ausführen.
+- [x] Level Rider, Momentary/Short-Term/Integrated LUFS, True Peak und begrenzte Sprachanalyse mit bestätigten Empfehlungen implementieren.
+- [x] Eigene LV2-UI, Werkspresets, lokale Benutzerpresets und persistentes A/B implementieren.
+- [x] Beide Varianten im Debian-Ardour-Audiokern einfügen und gespeicherte Parameter erneut laden.
+- [ ] Tatsächliches Audio-Interface, Live-Aufnahme und Hörbewertung am Zielrechner prüfen.
+- [ ] Dereverb prüfen, sobald ein Verfahren die Hörbewertung mit realen Raumaufnahmen besteht.

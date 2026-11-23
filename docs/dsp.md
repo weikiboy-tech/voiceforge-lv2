@@ -24,3 +24,11 @@ Neben dem Hochpass stehen zwei Shelves und vier Glockenfilter zur Verfügung. Je
 - Studio-Rauschreduktion nutzt eine STFT mit vierfacher Überlappung, Quadratwurzel-Hann-Fenstern und einer gemeinsamen Mono-/Stereo-Maske. Der Rauschboden wird aus Nicht-Sprachfenstern unter dem Lernschwellwert aktualisiert. Eine Untergrenze, zeitliche Glättung, Glättung benachbarter Bins und Sprachschutz begrenzen Artefakte. [Spektrale Subtraktion](https://ieeexplore.ieee.org/abstract/document/1163209/) · [Fensterung und Overlap-Add](https://www.dsprelated.com/freebooks/sasp/Overlap_Add_OLA_STFT_Processing.html)
 
 Studio verzögert das Signal um die FFT-Größe plus die Klickvorschau. Bei 48 kHz sind das 1.058 Samples (22,04 ms), auch bei deaktivierten Studio-Modulen. Live hat keine zusätzliche Sample-Verzögerung.
+
+## Level Rider, Messung und Analyse
+
+Der Level Rider kombiniert ein geglättetes Quadratmittel mit der Spracherkennung. Bei geringer Pegelenergie und in Pausen geht er zurück auf Einheitsverstärkung. Ziel, maximale Anhebung, maximale Absenkung, Zeitkonstante und Einfluss der Spracherkennung sind einstellbar.
+
+Das Lautheitsmeter nutzt K-Weighting und summiert die Energie beider Kanäle. Momentary nutzt 400 ms, Short-Term drei Sekunden. Integrated verwendet 400-ms-Fenster bei 100-ms-Schritten, −70 LUFS absolutes und −10 LU relatives Gate. Ein Histogramm in 0,1-LU-Schritten hält den Speicherverbrauch über die Sitzungsdauer konstant. True Peak ist das Maximum über Samples und eine Fenster-Sinc-Interpolation, vierfach bis unter 96 kHz und zweifach ab 96 kHz. Die Tests enthalten Referenztöne und einen Inter-Sample-Peak. Eine vollständige EBU-Konformitätsprüfung mit dem offiziellen Prüfsatz steht aus. [ITU-R BS.1770-5](https://www.itu.int/rec/R-REC-BS.1770-5-202311-I/en) · [EBU Tech 3341](https://tech.ebu.ch/publications/tech3341/)
+
+Die Sprachanalyse misst bis zu acht Sekunden der Eingangsspur. Sie schätzt den Rauschpegel nur anhand der von der Spracherkennung als Pause erkannten Samples. Bass, Höhen und Sibilanz sind Energieindikatoren. Die integrierte Lautheit der Analyse wird separat aus dem Eingang ermittelt. Die Analyse verändert keine Regler, bis der Nutzer die Empfehlungen übernimmt.

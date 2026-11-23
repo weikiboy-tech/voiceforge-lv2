@@ -21,6 +21,7 @@ cat > "$config/config" <<'EOF'
 <Ardour>
  <Config>
   <Option name="try-autostart-engine" value="1"/>
+  <Option name="hide-dummy-backend" value="0"/>
  </Config>
  <Extra>
   <AudioMIDISetup>
